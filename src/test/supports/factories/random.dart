@@ -1,12 +1,10 @@
 import 'dart:math';
 
-import 'package:flutter_test/flutter_test.dart';
-
 class Randomizer {
   static List<int> uniqueNumbers({
     required int count,
     int min = 1,
-    int max = 9007199254740991,
+    int max = 2147483647,
   }) {
     if (count < 0) {
       throw ArgumentError('Count must be zero or positive.');
@@ -24,8 +22,9 @@ class Randomizer {
       List.empty(),
       (List<int> carry, int current) {
         final upper = max - current;
+        final range = upper - min + 1;
 
-        final base = min + random.nextInt(upper - min + 1);
+        final base = min + random.nextInt(range.clamp(1, 4294967296));
 
         var value = base;
 

@@ -1,45 +1,7 @@
 import 'dart:math';
 
-import 'random.dart';
-
-class LengthConstraint {
-  final int? minimum;
-  final int? maximum;
-
-  const LengthConstraint({this.minimum, this.maximum});
-
-  bool satisfies(int length) {
-    final minimumValue = minimum;
-    final maximumValue = maximum;
-    if (minimumValue != null && length < minimumValue) return false;
-    if (maximumValue != null && length > maximumValue) return false;
-    return true;
-  }
-
-  int clampRepeatCount(int min, int max, Random random) {
-    final minimumValue = minimum;
-    final maximumValue = maximum;
-
-    if (minimumValue == null && maximumValue == null) {
-      return min + random.nextInt(max - min + 1);
-    }
-
-    final effectiveMin = minimumValue ?? min;
-    final effectiveMax = maximumValue ?? max;
-
-    final clampedMin = effectiveMin.clamp(min, max);
-    final clampedMax = effectiveMax.clamp(min, max);
-
-    if (clampedMin > clampedMax) {
-      return clampedMin;
-    }
-
-    return clampedMin + random.nextInt(clampedMax - clampedMin + 1);
-  }
-}
-
 abstract class Node {
-  String generate(Random random, [LengthConstraint? lengthConstraint]);
+  String generate(Random random);
 }
 
 class SequenceNode extends Node {
@@ -48,8 +10,8 @@ class SequenceNode extends Node {
   SequenceNode(this.children);
 
   @override
-  String generate(Random random, [LengthConstraint? lengthConstraint]) =>
-      children.map((child) => child.generate(random, lengthConstraint)).join();
+  String generate(Random random) =>
+      children.map((child) => child.generate(random)).join();
 }
 
 class AltNode extends Node {
@@ -58,11 +20,8 @@ class AltNode extends Node {
   AltNode(this.options);
 
   @override
-  String generate(Random random, [LengthConstraint? lengthConstraint]) =>
-      options[random.nextInt(options.length)].generate(
-        random,
-        lengthConstraint,
-      );
+  String generate(Random random) =>
+      options[random.nextInt(options.length)].generate(random);
 }
 
 class LiteralNode extends Node {
@@ -71,8 +30,7 @@ class LiteralNode extends Node {
   LiteralNode(this.character);
 
   @override
-  String generate(Random random, [LengthConstraint? lengthConstraint]) =>
-      character;
+  String generate(Random random) => character;
 }
 
 class DotNode extends Node {
@@ -80,8 +38,7 @@ class DotNode extends Node {
       r"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-.";
 
   @override
-  String generate(Random random, [LengthConstraint? lengthConstraint]) =>
-      _pool[random.nextInt(_pool.length)];
+  String generate(Random random) => _pool[random.nextInt(_pool.length)];
 }
 
 class ClassNode extends Node {
@@ -90,7 +47,7 @@ class ClassNode extends Node {
   ClassNode(this.characters);
 
   @override
-  String generate(Random random, [LengthConstraint? lengthConstraint]) =>
+  String generate(Random random) =>
       characters[random.nextInt(characters.length)];
 }
 
@@ -102,17 +59,13 @@ class RepeatNode extends Node {
   RepeatNode({required this.child, required this.min, required this.max});
 
   @override
-  String generate(Random random, [LengthConstraint? lengthConstraint]) {
-    final count = lengthConstraint != null
-        ? lengthConstraint.clampRepeatCount(min, max, random)
-        : (max == min)
-        ? min
-        : min + random.nextInt(max - min + 1);
+  String generate(Random random) {
+    final count = (max == min) ? min : min + random.nextInt(max - min + 1);
 
     final buffer = StringBuffer();
 
     for (var i = 0; i < count; i++) {
-      buffer.write(child.generate(random, lengthConstraint));
+      buffer.write(child.generate(random));
     }
 
     return buffer.toString();
@@ -218,17 +171,12 @@ class Parser {
   }
 
   Node _parseAtom() {
+    // アンカー（^ と $）を検出して無視
     if (_try('^') || _try('\$')) {
-      return LiteralNode('');
+      return LiteralNode(''); // 空文字として扱う
     }
 
     if (_try('(')) {
-      if (_try('?')) {
-        if (!_try(':')) {
-          throw FormatException('Unsupported group construct at $index');
-        }
-      }
-
       final inner = _parseExpr();
       _expect(')');
 
@@ -270,6 +218,7 @@ class Parser {
           return ClassNode([' ', '\t']);
         case '^':
         case '\$':
+          // エスケープされた ^ と $ はリテラル文字として扱う
           return LiteralNode(character);
 
         default:
@@ -286,6 +235,7 @@ class Parser {
   }
 
   List<String> _parseClass() {
+    // 否定文字クラスの検出
     final negate = _try('^');
 
     final chars = <String>[];
@@ -329,6 +279,7 @@ class Parser {
     }
     if (chars.isEmpty) throw FormatException('Empty character class');
 
+    // 否定文字クラスの場合は補集合を返す
     if (negate) {
       return _negateCharClass(chars);
     }
@@ -336,13 +287,16 @@ class Parser {
     return chars;
   }
 
+  /// 文字クラスの補集合を生成
   List<String> _negateCharClass(List<String> excluded) {
     final all = <String>[];
 
+    // 印字可能ASCII文字の範囲を生成
     all.addAll(_range('a', 'z'));
     all.addAll(_range('A', 'Z'));
     all.addAll(_range('0', '9'));
 
+    // よく使われる記号を追加
     all.addAll([
       '_',
       '-',
@@ -377,6 +331,7 @@ class Parser {
       '^',
     ]);
 
+    // excluded に含まれない文字のみを返す
     return all.where((c) => !excluded.contains(c)).toList();
   }
 
@@ -399,280 +354,5 @@ class Parser {
     final sa = a.codeUnitAt(0), sb = b.codeUnitAt(0);
     final lo = min(sa, sb), hi = max(sa, sb);
     return [for (var k = lo; k <= hi; k++) String.fromCharCode(k)];
-  }
-}
-
-class StringFactory {
-  static const List<String> alphanumeric = [
-    'a',
-    'b',
-    'c',
-    'd',
-    'e',
-    'f',
-    'g',
-    'h',
-    'i',
-    'j',
-    'k',
-    'l',
-    'm',
-    'n',
-    'o',
-    'p',
-    'q',
-    'r',
-    's',
-    't',
-    'u',
-    'v',
-    'w',
-    'x',
-    'y',
-    'z',
-    'A',
-    'B',
-    'C',
-    'D',
-    'E',
-    'F',
-    'G',
-    'H',
-    'I',
-    'J',
-    'K',
-    'L',
-    'M',
-    'N',
-    'O',
-    'P',
-    'Q',
-    'R',
-    'S',
-    'T',
-    'U',
-    'V',
-    'W',
-    'X',
-    'Y',
-    'Z',
-    '0',
-    '1',
-    '2',
-    '3',
-    '4',
-    '5',
-    '6',
-    '7',
-    '8',
-    '9',
-  ];
-
-  static const List<String> alpha = [
-    'a',
-    'b',
-    'c',
-    'd',
-    'e',
-    'f',
-    'g',
-    'h',
-    'i',
-    'j',
-    'k',
-    'l',
-    'm',
-    'n',
-    'o',
-    'p',
-    'q',
-    'r',
-    's',
-    't',
-    'u',
-    'v',
-    'w',
-    'x',
-    'y',
-    'z',
-    'A',
-    'B',
-    'C',
-    'D',
-    'E',
-    'F',
-    'G',
-    'H',
-    'I',
-    'J',
-    'K',
-    'L',
-    'M',
-    'N',
-    'O',
-    'P',
-    'Q',
-    'R',
-    'S',
-    'T',
-    'U',
-    'V',
-    'W',
-    'X',
-    'Y',
-    'Z',
-  ];
-
-  static const List<String> numeric = [
-    '0',
-    '1',
-    '2',
-    '3',
-    '4',
-    '5',
-    '6',
-    '7',
-    '8',
-    '9',
-  ];
-
-  static const List<String> symbol = [
-    '!',
-    '"',
-    '#',
-    '\$',
-    '%',
-    '&',
-    "'",
-    '(',
-    ')',
-    '*',
-    '+',
-    ',',
-    '-',
-    '.',
-    '/',
-    ':',
-    ';',
-    '<',
-    '=',
-    '>',
-    '?',
-    '@',
-    '[',
-    '\\',
-    ']',
-    '^',
-    '_',
-    '`',
-    '{',
-    '|',
-    '}',
-    '~',
-  ];
-
-  static const List<String> uid = [...alphanumeric, '-', '_'];
-
-  static const List<String> hex = [
-    '0',
-    '1',
-    '2',
-    '3',
-    '4',
-    '5',
-    '6',
-    '7',
-    '8',
-    '9',
-    'a',
-    'b',
-    'c',
-    'd',
-    'e',
-    'f',
-    'A',
-    'B',
-    'C',
-    'D',
-    'E',
-    'F',
-  ];
-
-  static String create({
-    int? seed,
-    int min = 1,
-    int max = 32,
-    List<String> candidates = const [],
-  }) {
-    final fixedSeed = seed ?? _generateSeed(min: min, max: max);
-    final offset = (fixedSeed & (max - min + 1)).abs();
-    final length = min + offset;
-
-    final random = Random(fixedSeed);
-
-    final characters = candidates.isNotEmpty ? candidates : alphanumeric;
-
-    return List<String>.generate(
-      length,
-      (int index) => characters[random.nextInt(characters.length)],
-    ).join();
-  }
-
-  static List<String> createList({
-    required int count,
-    int? seed,
-    int min = 1,
-    int max = 255,
-    List<String> candidates = const [],
-  }) {
-    return Randomizer.uniqueNumbers(count: count, min: min, max: max)
-        .map(
-          (int seed) =>
-              create(seed: seed, min: min, max: max, candidates: candidates),
-        )
-        .toList();
-  }
-
-  static String createFromPattern({
-    required String pattern,
-    int? seed,
-    int? minimumLength,
-    int? maximumLength,
-  }) {
-    if (minimumLength != null &&
-        maximumLength != null &&
-        minimumLength > maximumLength) {
-      throw StateError(
-        'minimumLength ($minimumLength) cannot be greater than maximumLength ($maximumLength)',
-      );
-    }
-
-    final ast = Parser(pattern).parse();
-
-    final random = seed == null ? Random() : Random(seed);
-
-    final lengthConstraint = (minimumLength != null || maximumLength != null)
-        ? LengthConstraint(minimum: minimumLength, maximum: maximumLength)
-        : null;
-
-    final result = ast.generate(random, lengthConstraint);
-
-    if (lengthConstraint != null &&
-        !lengthConstraint.satisfies(result.length)) {
-      throw StateError(
-        'Failed to generate string satisfying length constraints (min: $minimumLength, max: $maximumLength). Generated length: ${result.length}',
-      );
-    }
-
-    return result;
-  }
-
-  static int _generateSeed({required int min, required int max}) {
-    if (min > max) {
-      throw ArgumentError('min must be <= max');
-    }
-
-    final random = Random();
-    return min + random.nextInt(max - min + 1);
   }
 }

@@ -29,8 +29,18 @@ class Builder<T, O> {
     return _factory.create(overrides: overrides, seed: _nextSeed());
   }
 
+  T buildWith({required int seed, O? overrides}) {
+    return _factory.create(overrides: overrides, seed: seed);
+  }
+
   List<T> buildList({required int count, O? overrides}) {
     return _nextSeeds(size: count)
+        .map((int seed) => _factory.create(overrides: overrides, seed: seed))
+        .toList();
+  }
+
+  List<T> buildListWith({required List<int> seeds, O? overrides}) {
+    return seeds
         .map((int seed) => _factory.create(overrides: overrides, seed: seed))
         .toList();
   }
