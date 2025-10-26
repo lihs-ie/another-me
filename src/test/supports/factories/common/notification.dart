@@ -45,10 +45,10 @@ class QuietHoursFactory
   ) {
     final start =
         overrides?.start ??
-        Builder(LocalTimeFactory()).duplicate(instance.start, null);
+        Builder(LocalTimeFactory()).duplicate(instance: instance.start);
     final end =
         overrides?.end ??
-        Builder(LocalTimeFactory()).duplicate(instance.end, null);
+        Builder(LocalTimeFactory()).duplicate(instance: instance.end);
 
     return QuietHours(start: start, end: end);
   }

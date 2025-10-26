@@ -6,14 +6,19 @@ import 'package:ulid/ulid.dart';
 abstract class ULIDBasedIdentifier implements ValueObject {
   final Ulid value;
 
-  ULIDBasedIdentifier({required this.value});
+  const ULIDBasedIdentifier(this.value);
 
-  ULIDBasedIdentifier.generate() : value = Ulid();
+  static ULIDBasedIdentifier generate() {
+    throw UnimplementedError();
+  }
 
-  ULIDBasedIdentifier.fromString(String value) : value = Ulid.parse(value);
+  static ULIDBasedIdentifier fromString(String value) {
+    throw UnimplementedError();
+  }
 
-  ULIDBasedIdentifier.fromBinary(List<int> bytes)
-    : value = Ulid.fromBytes(bytes);
+  static ULIDBasedIdentifier fromBinary(Uint8List bytes) {
+    throw UnimplementedError();
+  }
 
   @override
   String toString() => value.toString();

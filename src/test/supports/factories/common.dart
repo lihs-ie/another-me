@@ -39,13 +39,13 @@ class Builder<T, O> {
         .toList();
   }
 
-  List<T> buildListWith({required List<int> seeds, O? overrides}) {
-    return seeds
+  List<T> buildListWith({required int count, required int seed, O? overrides}) {
+    return List.generate(count, (int index) => seed + index)
         .map((int seed) => _factory.create(overrides: overrides, seed: seed))
         .toList();
   }
 
-  T duplicate(T instance, O? overrides) {
+  T duplicate({required T instance, O? overrides}) {
     return _factory.duplicate(instance, overrides);
   }
 

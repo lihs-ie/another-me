@@ -1,9 +1,9 @@
-class InvariantViolationException implements Exception {
+class InvariantViolationError implements Exception {
   final String message;
-  InvariantViolationException(this.message);
+  InvariantViolationError(this.message);
 
   @override
-  String toString() => 'InvariantViolationException: $message';
+  String toString() => 'InvariantViolationError: $message';
 }
 
 class Invariant {
@@ -18,17 +18,17 @@ class Invariant {
     final len = value.length;
 
     if (min != null && max != null && (len < min || max < len)) {
-      throw InvariantViolationException(
+      throw InvariantViolationError(
         'Length of $name must be between $min and $max.',
       );
     }
     if (min != null && len < min) {
-      throw InvariantViolationException(
+      throw InvariantViolationError(
         'Length of $name must be greater than or equal to $min.',
       );
     }
     if (max != null && max < len) {
-      throw InvariantViolationException(
+      throw InvariantViolationError(
         'Length of $name must be less than or equal to $max.',
       );
     }
@@ -40,7 +40,7 @@ class Invariant {
     required String needle,
   }) {
     if (value.contains(needle)) {
-      throw InvariantViolationException(
+      throw InvariantViolationError(
         '${_ucfirst(name)} must not contain $needle.',
       );
     }
@@ -53,7 +53,7 @@ class Invariant {
   }) {
     final regex = RegExp(pattern);
     if (!regex.hasMatch(value)) {
-      throw InvariantViolationException(
+      throw InvariantViolationError(
         '${_ucfirst(name)} must be matched for `$pattern`. `$value` is given.',
       );
     }
@@ -66,19 +66,19 @@ class Invariant {
     T? max,
   }) {
     if (min != null && max != null && (value < min || max < value)) {
-      throw InvariantViolationException(
+      throw InvariantViolationError(
         '${_ucfirst(name)} must be between $min and $max.',
       );
     }
 
     if (min != null && value < min) {
-      throw InvariantViolationException(
+      throw InvariantViolationError(
         '${_ucfirst(name)} must be greater than or equal to $min.',
       );
     }
 
     if (max != null && max < value) {
-      throw InvariantViolationException(
+      throw InvariantViolationError(
         '${_ucfirst(name)} must be less than or equal to $max.',
       );
     }
@@ -94,7 +94,7 @@ class Invariant {
     final cmp = left.compareTo(right);
     final ok = orEqualTo ? (cmp >= 0) : (cmp > 0);
     if (!ok) {
-      throw InvariantViolationException(
+      throw InvariantViolationError(
         '${_ucfirst(leftName)} must be ${orEqualTo ? 'greater than or equal to' : 'greater than'} ${_ucfirst(rightName)}.',
       );
     }
@@ -110,7 +110,7 @@ class Invariant {
     final cmp = left.compareTo(right);
     final ok = orEqualTo ? (cmp <= 0) : (cmp < 0);
     if (!ok) {
-      throw InvariantViolationException(
+      throw InvariantViolationError(
         '${_ucfirst(leftName)} must be ${orEqualTo ? 'less than or equal to' : 'less than'} ${_ucfirst(rightName)}.',
       );
     }

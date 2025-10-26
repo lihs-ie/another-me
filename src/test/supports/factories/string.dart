@@ -40,6 +40,7 @@ class LengthConstraint {
 
 abstract class Node {
   String generate(Random random, [LengthConstraint? lengthConstraint]);
+  (int, int) lengthRange();
 }
 
 class SequenceNode extends Node {
@@ -48,8 +49,70 @@ class SequenceNode extends Node {
   SequenceNode(this.children);
 
   @override
-  String generate(Random random, [LengthConstraint? lengthConstraint]) =>
-      children.map((child) => child.generate(random, lengthConstraint)).join();
+  (int, int) lengthRange() {
+    int minTotal = 0;
+    int maxTotal = 0;
+    for (final child in children) {
+      final (min, max) = child.lengthRange();
+      minTotal += min;
+      maxTotal += max;
+    }
+    return (minTotal, maxTotal);
+  }
+
+  @override
+  String generate(Random random, [LengthConstraint? lengthConstraint]) {
+    if (lengthConstraint == null) {
+      return children.map((child) => child.generate(random)).join();
+    }
+
+    final constraintMin = lengthConstraint.minimum ?? 0;
+    final constraintMax = lengthConstraint.maximum ?? 1000;
+    final results = <String>[];
+    int currentLength = 0;
+
+    for (var i = 0; i < children.length; i++) {
+      final child = children[i];
+      final (childMin, childMax) = child.lengthRange();
+
+      int remainingChildrenMin = 0;
+      for (var j = i + 1; j < children.length; j++) {
+        final (minLen, _) = children[j].lengthRange();
+        remainingChildrenMin += minLen;
+      }
+
+      final calculatedMin =
+          constraintMin - currentLength - remainingChildrenMin;
+      final availableMin = childMin > calculatedMin ? childMin : calculatedMin;
+      final calculatedMax =
+          constraintMax - currentLength - remainingChildrenMin;
+      final availableMax = childMax < calculatedMax ? childMax : calculatedMax;
+
+      if (availableMin > availableMax) {
+        if (childMin == 0) {
+          results.add('');
+        } else {
+          final result = child.generate(random);
+          results.add(result);
+          currentLength += result.length;
+        }
+      } else if (availableMin < 0) {
+        final result = child.generate(random);
+        results.add(result);
+        currentLength += result.length;
+      } else {
+        final childConstraint = LengthConstraint(
+          minimum: availableMin,
+          maximum: availableMax,
+        );
+        final result = child.generate(random, childConstraint);
+        results.add(result);
+        currentLength += result.length;
+      }
+    }
+
+    return results.join();
+  }
 }
 
 class AltNode extends Node {
@@ -58,17 +121,52 @@ class AltNode extends Node {
   AltNode(this.options);
 
   @override
-  String generate(Random random, [LengthConstraint? lengthConstraint]) =>
-      options[random.nextInt(options.length)].generate(
-        random,
-        lengthConstraint,
-      );
+  (int, int) lengthRange() {
+    int minLen = 1000000;
+    int maxLen = 0;
+    for (final option in options) {
+      final (min, max) = option.lengthRange();
+      if (min < minLen) minLen = min;
+      if (max > maxLen) maxLen = max;
+    }
+    return (minLen, maxLen);
+  }
+
+  @override
+  String generate(Random random, [LengthConstraint? lengthConstraint]) {
+    if (lengthConstraint == null) {
+      return options[random.nextInt(options.length)].generate(random);
+    }
+
+    final constraintMin = lengthConstraint.minimum ?? 0;
+    final constraintMax = lengthConstraint.maximum ?? 1000;
+
+    final validOptions = <Node>[];
+    for (final option in options) {
+      final (min, max) = option.lengthRange();
+      if (max >= constraintMin && min <= constraintMax) {
+        validOptions.add(option);
+      }
+    }
+
+    if (validOptions.isEmpty) {
+      return options.first.generate(random, lengthConstraint);
+    }
+
+    return validOptions[random.nextInt(validOptions.length)].generate(
+      random,
+      lengthConstraint,
+    );
+  }
 }
 
 class LiteralNode extends Node {
   final String character;
 
   LiteralNode(this.character);
+
+  @override
+  (int, int) lengthRange() => (character.length, character.length);
 
   @override
   String generate(Random random, [LengthConstraint? lengthConstraint]) =>
@@ -80,6 +178,9 @@ class DotNode extends Node {
       r"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-.";
 
   @override
+  (int, int) lengthRange() => (1, 1);
+
+  @override
   String generate(Random random, [LengthConstraint? lengthConstraint]) =>
       _pool[random.nextInt(_pool.length)];
 }
@@ -88,6 +189,9 @@ class ClassNode extends Node {
   final List<String> characters;
 
   ClassNode(this.characters);
+
+  @override
+  (int, int) lengthRange() => (1, 1);
 
   @override
   String generate(Random random, [LengthConstraint? lengthConstraint]) =>
@@ -102,17 +206,113 @@ class RepeatNode extends Node {
   RepeatNode({required this.child, required this.min, required this.max});
 
   @override
+  (int, int) lengthRange() {
+    final (childMin, childMax) = child.lengthRange();
+    return (childMin * min, childMax * max);
+  }
+
+  @override
   String generate(Random random, [LengthConstraint? lengthConstraint]) {
-    final count = lengthConstraint != null
-        ? lengthConstraint.clampRepeatCount(min, max, random)
-        : (max == min)
-        ? min
-        : min + random.nextInt(max - min + 1);
+    if (lengthConstraint == null) {
+      final effectiveMax = max > 1000 ? 1000 : max;
+      final count = (effectiveMax == min)
+          ? min
+          : min + random.nextInt(effectiveMax - min + 1);
+      final buffer = StringBuffer();
+      for (var i = 0; i < count; i++) {
+        buffer.write(child.generate(random));
+      }
+      return buffer.toString();
+    }
+
+    final constraintMin = lengthConstraint.minimum ?? 0;
+    final constraintMax = lengthConstraint.maximum ?? 1000;
+    final (childMin, childMax) = child.lengthRange();
+
+    int minCount = min;
+    int maxCount = max;
+
+    if (childMax > 0) {
+      final calculatedMin = (constraintMin / childMax).ceil();
+      minCount = calculatedMin > min ? calculatedMin : min;
+    }
+    if (childMin > 0) {
+      final calculatedMax = (constraintMax / childMin).floor();
+      if (calculatedMax < min) {
+        minCount = min;
+        maxCount = min;
+      } else {
+        maxCount = calculatedMax;
+      }
+    }
+
+    const absoluteMaxRepeat = 100000;
+    if (minCount > absoluteMaxRepeat) {
+      minCount = absoluteMaxRepeat;
+    }
+    if (maxCount > absoluteMaxRepeat) {
+      maxCount = absoluteMaxRepeat;
+    }
+
+    if (minCount > maxCount) {
+      minCount = min;
+      maxCount = min;
+    }
+
+    if (min == 0 && childMin > 1 && maxCount > 20) {
+      final reasonableMax = (constraintMax / (childMin * 3)).floor();
+      if (reasonableMax > 3 && reasonableMax < maxCount) {
+        maxCount = reasonableMax;
+      } else if (maxCount > 20) {
+        maxCount = 20;
+      }
+    }
+
+    final count = (minCount == maxCount)
+        ? minCount
+        : minCount + random.nextInt(maxCount - minCount + 1);
 
     final buffer = StringBuffer();
+    int generated = 0;
 
     for (var i = 0; i < count; i++) {
-      buffer.write(child.generate(random, lengthConstraint));
+      final remaining = count - i;
+      final remainingMinCalc =
+          constraintMin - generated - (childMin * (remaining - 1));
+      final remainingMin = remainingMinCalc > 0 ? remainingMinCalc : 0;
+      final remainingMax =
+          constraintMax - generated - (childMin * (remaining - 1));
+
+      var itemMin = childMin > remainingMin ? childMin : remainingMin;
+      var itemMax = childMax < remainingMax ? childMax : remainingMax;
+
+      if (count > 5 && childMin > 1 && itemMax - itemMin > 10) {
+        final avgSize = (constraintMax / count).floor();
+        if (avgSize > itemMin && avgSize < itemMax) {
+          final variance = (avgSize * 0.5).floor();
+          itemMin = (avgSize - variance) > childMin
+              ? (avgSize - variance)
+              : childMin;
+          itemMax = avgSize + variance;
+          if (itemMax > remainingMax) {
+            itemMax = remainingMax;
+          }
+        }
+      }
+
+      if (itemMin > itemMax || itemMin < 0) {
+        final item = child.generate(random);
+        buffer.write(item);
+        generated += item.length;
+      } else {
+        final itemConstraint = LengthConstraint(
+          minimum: itemMin,
+          maximum: itemMax,
+        );
+        final item = child.generate(random, itemConstraint);
+        buffer.write(item);
+        generated += item.length;
+      }
     }
 
     return buffer.toString();
@@ -193,8 +393,8 @@ class Parser {
   Node _parseFactor() {
     var atom = _parseAtom();
     if (!eof) {
-      if (_try('*')) return RepeatNode(child: atom, min: 0, max: 10);
-      if (_try('+')) return RepeatNode(child: atom, min: 1, max: 10);
+      if (_try('*')) return RepeatNode(child: atom, min: 0, max: 100000);
+      if (_try('+')) return RepeatNode(child: atom, min: 1, max: 100000);
       if (_try('?')) return RepeatNode(child: atom, min: 0, max: 1);
       if (_try('{')) {
         final start = _readNumber();
@@ -202,14 +402,14 @@ class Parser {
         int? end;
 
         if (_try(',')) {
-          end = _try('}') ? start + 10 : _readNumber();
+          end = _try('}') ? start + 100000 : _readNumber();
           _expect('}');
         } else {
           _expect('}');
           end = start;
         }
 
-        final max = end.clamp(0, 1000);
+        final max = end.clamp(0, 100000);
 
         return RepeatNode(child: atom, min: start, max: max);
       }
@@ -605,7 +805,7 @@ class StringFactory {
     List<String> candidates = const [],
   }) {
     final fixedSeed = seed ?? _generateSeed(min: min, max: max);
-    final offset = (fixedSeed & (max - min + 1)).abs();
+    final offset = (fixedSeed % (max - min + 1)).abs();
     final length = min + offset;
 
     final random = Random(fixedSeed);
@@ -625,7 +825,7 @@ class StringFactory {
     int max = 255,
     List<String> candidates = const [],
   }) {
-    return Randomizer.uniqueNumbers(count: count, min: min, max: max)
+    return Randomizer.uniqueNumbers(count: count)
         .map(
           (int seed) =>
               create(seed: seed, min: min, max: max, candidates: candidates),
@@ -639,11 +839,23 @@ class StringFactory {
     int? minimumLength,
     int? maximumLength,
   }) {
-    if (minimumLength != null &&
-        maximumLength != null &&
-        minimumLength > maximumLength) {
+    int? effectiveMinimumLength = minimumLength;
+    int? effectiveMaximumLength = maximumLength;
+
+    if (minimumLength != null && maximumLength == null) {
+      if (minimumLength == 0) {
+        effectiveMaximumLength = 10;
+      } else {
+        final reasonable = minimumLength + 20;
+        effectiveMaximumLength = reasonable > 100 ? 100 : reasonable;
+      }
+    }
+
+    if (effectiveMinimumLength != null &&
+        effectiveMaximumLength != null &&
+        effectiveMinimumLength > effectiveMaximumLength) {
       throw StateError(
-        'minimumLength ($minimumLength) cannot be greater than maximumLength ($maximumLength)',
+        'minimumLength ($effectiveMinimumLength) cannot be greater than maximumLength ($effectiveMaximumLength)',
       );
     }
 
@@ -651,8 +863,12 @@ class StringFactory {
 
     final random = seed == null ? Random() : Random(seed);
 
-    final lengthConstraint = (minimumLength != null || maximumLength != null)
-        ? LengthConstraint(minimum: minimumLength, maximum: maximumLength)
+    final lengthConstraint =
+        (effectiveMinimumLength != null || effectiveMaximumLength != null)
+        ? LengthConstraint(
+            minimum: effectiveMinimumLength,
+            maximum: effectiveMaximumLength,
+          )
         : null;
 
     final result = ast.generate(random, lengthConstraint);
@@ -660,7 +876,7 @@ class StringFactory {
     if (lengthConstraint != null &&
         !lengthConstraint.satisfies(result.length)) {
       throw StateError(
-        'Failed to generate string satisfying length constraints (min: $minimumLength, max: $maximumLength). Generated length: ${result.length}',
+        'Failed to generate string satisfying length constraints (min: $effectiveMinimumLength, max: $effectiveMaximumLength). Generated length: ${result.length}',
       );
     }
 

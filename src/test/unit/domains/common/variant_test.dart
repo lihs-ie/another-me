@@ -3,21 +3,21 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('Package domains/common/variant', () {
-    group('InvariantViolationException', () {
+    group('InvariantViolationError', () {
       test('creates instance with message.', () {
         final message = 'Test error message';
-        final exception = InvariantViolationException(message);
+        final exception = InvariantViolationError(message);
 
         expect(exception.message, equals(message));
       });
 
       test('toString returns formatted message.', () {
         final message = 'Test error message';
-        final exception = InvariantViolationException(message);
+        final exception = InvariantViolationError(message);
 
         expect(
           exception.toString(),
-          equals('InvariantViolationException: Test error message'),
+          equals('InvariantViolationError: Test error message'),
         );
       });
     });
@@ -51,7 +51,7 @@ void main() {
         }
       });
 
-      group('throws InvariantViolationException with', () {
+      group('throws InvariantViolationError with', () {
         final invalids = [
           (value: 'test', min: 5, max: 10),
           (value: 'test', min: 1, max: 3),
@@ -70,7 +70,7 @@ void main() {
                   min: invalid.min,
                   max: invalid.max,
                 ),
-                throwsA(isA<InvariantViolationException>()),
+                throwsA(isA<InvariantViolationError>()),
               );
             },
           );
@@ -101,7 +101,7 @@ void main() {
         }
       });
 
-      group('throws InvariantViolationException with', () {
+      group('throws InvariantViolationError with', () {
         final invalids = [
           (value: 'hello', needle: 'e'),
           (value: 'test', needle: 't'),
@@ -116,7 +116,7 @@ void main() {
                 name: 'test',
                 needle: invalid.needle,
               ),
-              throwsA(isA<InvariantViolationException>()),
+              throwsA(isA<InvariantViolationError>()),
             );
           });
         }
@@ -146,7 +146,7 @@ void main() {
         }
       });
 
-      group('throws InvariantViolationException with', () {
+      group('throws InvariantViolationError with', () {
         final invalids = [
           (value: 'ABC', pattern: r'^[a-z]+$'),
           (value: 'abc', pattern: r'^\d+$'),
@@ -161,7 +161,7 @@ void main() {
                 name: 'test',
                 pattern: invalid.pattern,
               ),
-              throwsA(isA<InvariantViolationException>()),
+              throwsA(isA<InvariantViolationError>()),
             );
           });
         }
@@ -198,7 +198,7 @@ void main() {
         }
       });
 
-      group('throws InvariantViolationException with', () {
+      group('throws InvariantViolationError with', () {
         final invalids = [
           (value: 5, min: 10, max: 20),
           (value: 5, min: 1, max: 4),
@@ -218,7 +218,7 @@ void main() {
                   min: invalid.min,
                   max: invalid.max,
                 ),
-                throwsA(isA<InvariantViolationException>()),
+                throwsA(isA<InvariantViolationError>()),
               );
             },
           );
@@ -254,7 +254,7 @@ void main() {
         }
       });
 
-      group('throws InvariantViolationException with', () {
+      group('throws InvariantViolationError with', () {
         final invalids = [
           (left: 5, right: 10, orEqualTo: false),
           (left: 5, right: 5, orEqualTo: false),
@@ -273,7 +273,7 @@ void main() {
                   rightName: 'right',
                   orEqualTo: invalid.orEqualTo,
                 ),
-                throwsA(isA<InvariantViolationException>()),
+                throwsA(isA<InvariantViolationError>()),
               );
             },
           );
@@ -309,7 +309,7 @@ void main() {
         }
       });
 
-      group('throws InvariantViolationException with', () {
+      group('throws InvariantViolationError with', () {
         final invalids = [
           (left: 10, right: 5, orEqualTo: false),
           (left: 10, right: 10, orEqualTo: false),
@@ -328,7 +328,7 @@ void main() {
                   rightName: 'right',
                   orEqualTo: invalid.orEqualTo,
                 ),
-                throwsA(isA<InvariantViolationException>()),
+                throwsA(isA<InvariantViolationError>()),
               );
             },
           );

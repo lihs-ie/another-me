@@ -26,25 +26,32 @@ abstract interface class QueueingDriver {
 class EventBroker {
   final Map<Type, List<Listener>> _listeners = {};
   final QueueingDriver queue;
+  final List<BaseEvent> _pending = [];
 
   EventBroker({required this.queue});
 
-  void listen<T extends BaseEvent>(Listener<T> listener) {
+  void listen<T extends BaseEvent>(void Function(T event) handler) {
     final eventType = T;
     final listeners = _listeners[eventType] ?? [];
 
-    listeners.add(listener);
+    listeners.add(Listener<T>(handler));
     _listeners[eventType] = listeners;
   }
 
   void publish<T extends BaseEvent>(T event) {
-    queue.enqueue(event);
+    _pending.add(event);
   }
 
   void publishAll(List<BaseEvent> events) {
-    for (final event in events) {
-      queue.enqueue(event);
+    _pending.addAll(events);
+  }
+
+  Future<void> deliver() async {
+    for (final event in _pending) {
+      await queue.enqueue(event);
     }
+
+    _pending.clear();
   }
 
   Future<void> consume<T extends BaseEvent>() async {
@@ -67,4 +74,28 @@ class EventBroker {
 
 abstract interface class EventSubscriber {
   void subscribe(EventBroker broker);
+}
+
+mixin Publishable<T extends BaseEvent> {
+  final List<T> _events = [];
+
+  void publish(T event) {
+    _events.add(event);
+  }
+
+  void publishAll(List<T> events) {
+    _events.addAll(events);
+  }
+
+  List<T> events() {
+    final events = List<T>.unmodifiable(_events);
+
+    clear();
+
+    return events;
+  }
+
+  void clear() {
+    _events.clear();
+  }
 }

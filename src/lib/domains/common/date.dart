@@ -1,5 +1,6 @@
 import 'package:another_me/domains/common/value_object.dart';
 import 'package:another_me/domains/common/variant.dart';
+import 'package:flutter/foundation.dart';
 
 enum DayPeriod { morning, noon, night }
 

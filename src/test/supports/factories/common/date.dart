@@ -52,3 +52,17 @@ class VolumeLevelFactory
     return VolumeLevel(value: value, isMuted: isMuted);
   }
 }
+
+class DateTimeFactory extends Factory<DateTime, ({int? drift})> {
+  @override
+  DateTime create({({int? drift})? overrides, required int seed}) {
+    final drift = overrides?.drift ?? (seed % (365 + 2)) - 365;
+
+    return DateTime.now().add(Duration(days: drift));
+  }
+
+  @override
+  DateTime duplicate(DateTime instance, ({int? drift})? overrides) {
+    return instance.add(Duration(days: overrides?.drift ?? 0));
+  }
+}

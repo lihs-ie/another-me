@@ -19,20 +19,30 @@ class FilePathFactory
         overrides?.os ??
         Builder(OperatingSystemFactory()).buildWith(seed: seed);
 
-    final valueLength = (seed % FilePath.maxLength) + 1;
+    final valueLength = ((seed % 50).truncate() + 5).clamp(5, 100);
+
+    final extension = [
+      'png',
+      'json',
+      'aac',
+      'm4a',
+      'mp3',
+      'wav',
+      'txt',
+    ].elementAt(seed % 6);
+
+    final pattern = switch (os) {
+      OperatingSystem.macOS => FilePath.macOSValuePattern,
+      OperatingSystem.iOS => FilePath.iOSValuePattern,
+      OperatingSystem.android => FilePath.androidValuePattern,
+      OperatingSystem.windows => FilePath.windowsValuePattern,
+    };
+
+    final nonExtensionLength = valueLength - extension.length - 1;
 
     final value =
         overrides?.value ??
-        StringFactory.createFromPattern(
-          pattern: switch (os) {
-            OperatingSystem.macOS => FilePath.macOSValuePattern,
-            OperatingSystem.iOS => FilePath.iOSValuePattern,
-            OperatingSystem.android => FilePath.androidValuePattern,
-            OperatingSystem.windows => FilePath.windowsValuePattern,
-          },
-          minimumLength: valueLength,
-          maximumLength: valueLength,
-        );
+        '${StringFactory.createFromPattern(pattern: pattern, seed: seed, minimumLength: nonExtensionLength, maximumLength: nonExtensionLength)}.$extension';
 
     return FilePath(value: value, os: os);
   }

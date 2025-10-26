@@ -1,47 +1,31 @@
 import 'package:another_me/domains/common/notification.dart';
-import 'package:another_me/domains/common/variant.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../supports/factories/common.dart';
 import '../../../supports/factories/common/notification.dart';
 import '../../../supports/helper/math.dart';
+import 'value_object.dart';
 
 void main() {
-  group('group name', () {});
-  (
-    'Package domains/common/notification',
-    () {
-      group('LocalTime', () {
-        group('instantiate', () {
-          test('successfully with valid values.', () {
-            final hour = randomInteger(min: 0, max: 23);
-            final minute = randomInteger(min: 0, max: 59);
-
-            final instance = LocalTime(hour: hour, minute: minute);
-
-            expect(instance.hour, equals(hour));
-            expect(instance.minute, equals(minute));
-          });
-        });
-
-        group('instantiate unsuccessfully with', () {
-          final invalids = [
-            (hour: -1, minute: 0),
-            (hour: 24, minute: 0),
-            (hour: 0, minute: -1),
-            (hour: 0, minute: 60),
-          ];
-
-          for (final invalid in invalids) {
-            test('hour: ${invalid.hour}, minute: ${invalid.minute}.', () {
-              expect(
-                () => LocalTime(hour: invalid.hour, minute: invalid.minute),
-                throwsA(isA<InvariantViolationException>()),
-              );
-            });
-          }
-        });
-
+  group('Package domains/common/notification', () {
+    valueObjectTest(
+      constructor: (({int hour, int minute}) props) =>
+          LocalTime(hour: props.hour, minute: props.minute),
+      generator: () => (
+        hour: randomInteger(min: 0, max: 23),
+        minute: randomInteger(min: 0, max: 59),
+      ),
+      variations: (({int hour, int minute}) props) => [
+        (hour: props.hour == 23 ? 0 : props.hour + 1, minute: props.minute),
+        (hour: props.hour, minute: props.minute == 59 ? 0 : props.minute + 1),
+      ],
+      invalids: (({int hour, int minute}) props) => [
+        (hour: -1, minute: props.minute),
+        (hour: 24, minute: props.minute),
+        (hour: props.hour, minute: -1),
+        (hour: props.hour, minute: 60),
+      ],
+      additionalTests: () {
         group('toMinutes', () {
           test('returns correct total minutes.', () {
             final instance = LocalTime(hour: 2, minute: 30);
@@ -51,95 +35,40 @@ void main() {
             expect(totalMinutes, equals(150));
           });
         });
+      },
+    );
 
-        group('equals', () {
-          test('returns true with same instances.', () {
-            final hour = randomInteger(min: 0, max: 23);
-            final minute = randomInteger(min: 0, max: 59);
-
-            final instance1 = LocalTime(hour: hour, minute: minute);
-            final instance2 = LocalTime(hour: hour, minute: minute);
-
-            expect(instance1 == instance2, isTrue);
-          });
-
-          test('returns false with different instances.', () {
-            const differentPairs = [
-              (hour1: 1, minute1: 0, hour2: 2, minute2: 0),
-              (hour1: 0, minute1: 30, hour2: 0, minute2: 45),
-            ];
-
-            for (final pair in differentPairs) {
-              final instance1 = LocalTime(
-                hour: pair.hour1,
-                minute: pair.minute1,
-              );
-              final instance2 = LocalTime(
-                hour: pair.hour2,
-                minute: pair.minute2,
-              );
-
-              expect(instance1 == instance2, isFalse);
-            }
-          });
-        });
-      });
-
-      group('QuietHours', () {
-        group('instantiate', () {
-          test('successfully with valid values.', () {
-            final start = Builder(LocalTimeFactory()).build(
-              overrides: (hour: randomInteger(min: 0, max: 22), minute: null),
-            );
-            final end = Builder(
-              LocalTimeFactory(),
-            ).build(overrides: (hour: start.hour + 1, minute: null));
-
-            final instance = QuietHours(start: start, end: end);
-
-            expect(instance.start, equals(start));
-            expect(instance.end, equals(end));
-          });
-
-          test('unsuccessfully with invalid values.', () {
-            final start = Builder(LocalTimeFactory()).build(
-              overrides: (hour: randomInteger(min: 1, max: 23), minute: null),
-            );
-            final end = Builder(
-              LocalTimeFactory(),
-            ).build(overrides: (hour: start.hour - 1, minute: null));
-
-            expect(
-              () => QuietHours(start: start, end: end),
-              throwsA(isA<InvariantViolationException>()),
-            );
-          });
-        });
-      });
-
-      group('equals', () {
-        test('returns true with same instances.', () {
-          final start = Builder(LocalTimeFactory()).build();
-          final end = Builder(LocalTimeFactory()).build();
-
-          final instance1 = QuietHours(start: start, end: end);
-          final instance2 = QuietHours(start: start, end: end);
-
-          expect(instance1 == instance2, isTrue);
-        });
-
-        test('returns false with different instances.', () {
-          final start1 = Builder(LocalTimeFactory()).build();
-          final end1 = Builder(LocalTimeFactory()).build();
-          final start2 = Builder(LocalTimeFactory()).build();
-          final end2 = Builder(LocalTimeFactory()).build();
-
-          final instance1 = QuietHours(start: start1, end: end1);
-          final instance2 = QuietHours(start: start2, end: end2);
-
-          expect(instance1 == instance2, isFalse);
-        });
-      });
-    },
-  );
+    valueObjectTest(
+      constructor: (({LocalTime start, LocalTime end}) props) =>
+          QuietHours(start: props.start, end: props.end),
+      generator: () {
+        final start = Builder(LocalTimeFactory()).build(
+          overrides: (hour: randomInteger(min: 0, max: 22), minute: null),
+        );
+        final end = Builder(
+          LocalTimeFactory(),
+        ).build(overrides: (hour: start.hour + 1, minute: null));
+        return (start: start, end: end);
+      },
+      variations: (({LocalTime start, LocalTime end}) props) => [
+        (
+          start: LocalTime(
+            hour: props.start.hour,
+            minute: props.start.minute == 59 ? 0 : props.start.minute + 1,
+          ),
+          end: props.end,
+        ),
+        (
+          start: props.start,
+          end: LocalTime(
+            hour: props.end.hour,
+            minute: props.end.minute == 59 ? 0 : props.end.minute + 1,
+          ),
+        ),
+      ],
+      invalids: (({LocalTime start, LocalTime end}) props) => [
+        (start: props.end, end: props.start),
+      ],
+    );
+  });
 }
