@@ -423,8 +423,7 @@ class AssetCatalogPublishedFactory
 
 typedef AssetCatalogUpdatedOverrides = ({
   AssetCatalogIdentifier? catalog,
-  SemanticVersion? oldVersion,
-  SemanticVersion? newVersion,
+  List<AssetPackage>? updatedPackages,
 });
 
 class AssetCatalogUpdatedFactory
@@ -438,16 +437,15 @@ class AssetCatalogUpdatedFactory
         overrides?.catalog ??
         Builder(AssetCatalogIdentifierFactory()).buildWith(seed: seed);
 
-    final oldVersion = overrides?.oldVersion;
-
-    final newVersion =
-        overrides?.newVersion ??
-        Builder(SemanticVersionFactory()).buildWith(seed: seed + 1);
+    final updatedPackages =
+        overrides?.updatedPackages ??
+        Builder(
+          AssetPackageFactory(),
+        ).buildListWith(count: (seed % 5) + 1, seed: seed);
 
     return AssetCatalogUpdated(
       catalog: catalog,
-      oldVersion: oldVersion,
-      newVersion: newVersion,
+      updatedPackages: updatedPackages,
     );
   }
 
@@ -462,22 +460,18 @@ class AssetCatalogUpdatedFactory
           AssetCatalogIdentifierFactory(),
         ).duplicate(instance: instance.catalog);
 
-    final oldVersion = overrides?.oldVersion != null
-        ? Builder(
-            SemanticVersionFactory(),
-          ).duplicate(instance: instance.oldVersion!)
-        : null;
-
-    final newVersion =
-        overrides?.newVersion ??
-        Builder(
-          SemanticVersionFactory(),
-        ).duplicate(instance: instance.newVersion);
+    final updatedPackages =
+        overrides?.updatedPackages ??
+        instance.updatedPackages
+            .map<AssetPackage>(
+              (package) =>
+                  Builder(AssetPackageFactory()).duplicate(instance: package),
+            )
+            .toList();
 
     return AssetCatalogUpdated(
       catalog: catalog,
-      oldVersion: oldVersion,
-      newVersion: newVersion,
+      updatedPackages: updatedPackages,
     );
   }
 }

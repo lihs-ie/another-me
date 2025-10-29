@@ -309,3 +309,40 @@ class _AnimationBindingManifestRepository
     return Future.value();
   }
 }
+
+typedef AnimationBindingManifestRepositoryOverrides = ({
+  List<AnimationBindingManifest>? instances,
+  void Function(AnimationBindingManifest)? onPersist,
+});
+
+class AnimationBindingManifestRepositoryFactory
+    extends
+        Factory<
+          AnimationBindingManifestRepository,
+          AnimationBindingManifestRepositoryOverrides
+        > {
+  @override
+  AnimationBindingManifestRepository create({
+    AnimationBindingManifestRepositoryOverrides? overrides,
+    required int seed,
+  }) {
+    final instances =
+        overrides?.instances ??
+        Builder(
+          AnimationBindingManifestFactory(),
+        ).buildListWith(count: (seed % 10) + 1, seed: seed);
+
+    return _AnimationBindingManifestRepository(
+      instances: instances,
+      onPersist: overrides?.onPersist,
+    );
+  }
+
+  @override
+  AnimationBindingManifestRepository duplicate(
+    AnimationBindingManifestRepository instance,
+    AnimationBindingManifestRepositoryOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}

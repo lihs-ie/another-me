@@ -29,7 +29,7 @@ class FilePathFactory
       'mp3',
       'wav',
       'txt',
-    ].elementAt(seed % 6);
+    ].elementAt(seed % 7);
 
     final pattern = switch (os) {
       OperatingSystem.macOS => FilePath.macOSValuePattern,
@@ -38,7 +38,10 @@ class FilePathFactory
       OperatingSystem.windows => FilePath.windowsValuePattern,
     };
 
-    final nonExtensionLength = valueLength - extension.length - 1;
+    final nonExtensionLength = (valueLength - extension.length - 1).clamp(
+      1,
+      100,
+    );
 
     final value =
         overrides?.value ??

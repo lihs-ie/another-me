@@ -384,14 +384,10 @@ class AssetCatalogPublished extends AssetCatalogEvent {
 
 class AssetCatalogUpdated extends AssetCatalogEvent {
   final AssetCatalogIdentifier catalog;
-  final SemanticVersion? oldVersion;
-  final SemanticVersion newVersion;
+  final List<AssetPackage> updatedPackages;
 
-  AssetCatalogUpdated({
-    required this.catalog,
-    required this.oldVersion,
-    required this.newVersion,
-  }) : super(DateTime.now());
+  AssetCatalogUpdated({required this.catalog, required this.updatedPackages})
+    : super(DateTime.now());
 }
 
 class AssetCatalogDeprecated extends AssetCatalogEvent {
@@ -497,8 +493,7 @@ class CatalogPublishSubscriber implements EventSubscriber {
       broker.publish(
         AssetCatalogUpdated(
           catalog: event.catalog,
-          oldVersion: null,
-          newVersion: event.version,
+          updatedPackages: event.packages,
         ),
       );
     };
