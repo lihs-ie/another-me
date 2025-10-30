@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:another_me/domains/common/event.dart';
 import 'package:another_me/domains/common/identifier.dart';
 import 'package:another_me/domains/common/storage.dart';
+import 'package:another_me/domains/common/transaction.dart';
 import 'package:another_me/domains/common/url.dart';
 import 'package:another_me/domains/common/value_object.dart';
 import 'package:another_me/domains/common/variant.dart';
@@ -920,4 +921,54 @@ abstract class AttributionBookRepository {
   Future<AttributionBook> current();
 
   Future<void> persist(AttributionBook book);
+}
+
+class AttributionPublishSubscriber implements EventSubscriber {
+  final LicenseRecordRepository _licenseRepository;
+  final AttributionBookRepository _attributionBookRepository;
+  final Transaction _transaction;
+
+  AttributionPublishSubscriber({
+    required LicenseRecordRepository licenseRepository,
+    required AttributionBookRepository attributionBookRepository,
+    required Transaction transaction,
+  }) : _licenseRepository = licenseRepository,
+       _attributionBookRepository = attributionBookRepository,
+       _transaction = transaction;
+
+  @override
+  void subscribe(EventBroker broker) {
+    broker.listen<LicenseRecordRegistered>(_onLicenseRecordRegistered(broker));
+  }
+
+  void Function(LicenseRecordRegistered event) _onLicenseRecordRegistered(
+    EventBroker broker,
+  ) {
+    return (LicenseRecordRegistered event) {
+      _transaction.execute(() async {
+        final licenseRecord = await _licenseRepository.find(event.identifier);
+        final attributionBook = await _attributionBookRepository.current();
+
+        if (licenseRecord == null) {
+          throw StateError(
+            'LicenseRecord with identifier ${event.identifier} not found.',
+          );
+        }
+
+        final entry = AttributionEntry(
+          resource: AttributionResourceIdentifier.generate(),
+          displayName: event.trackTitle,
+          attributionText: licenseRecord.attributionText,
+          license: licenseRecord.identifier,
+          isValid: true,
+        );
+
+        await attributionBook.appendEntry(entry, _licenseRepository);
+
+        await _attributionBookRepository.persist(attributionBook);
+
+        broker.publishAll(attributionBook.events());
+      });
+    };
+  }
 }

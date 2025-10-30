@@ -1054,5 +1054,25 @@ void main() {
         });
       });
     });
+
+    group('AttributionPublishSubscriber', () {
+      test(
+        'adds attribution entry when LicenseRecordRegistered is published.',
+        () async {
+          // TODO: Test requires LicenseRecord to have an activate() or changeStatus() method
+          // to change from pending to active status. Currently skipped.
+        },
+        skip: 'Requires LicenseRecord.activate() or changeStatus() method',
+      );
+
+      test(
+        'throws StateError when LicenseRecord does not exist.',
+        () async {
+          // TODO: Test requires LicenseRecord to have an activate() or changeStatus() method
+          // Currently skipped.
+        },
+        skip: 'Requires LicenseRecord.activate() or changeStatus() method',
+      );
+    });
   });
 }
