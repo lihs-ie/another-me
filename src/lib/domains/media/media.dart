@@ -385,7 +385,7 @@ class Track with Publishable<TrackEvent> {
 }
 
 abstract interface class TrackRepository {
-  Future<Track?> find(TrackIdentifier identifier);
+  Future<Track> find(TrackIdentifier identifier);
   Future<List<Track>> all();
   Future<void> persist(Track track);
   Future<void> terminate(TrackIdentifier identifier);
@@ -627,7 +627,7 @@ class Playlist with Publishable<PlaylistEvent> {
     }
 
     if (!allowDuplicates) {
-      final trackIds = _entries.map((e) => e.track).toSet();
+      final trackIds = _entries.map((entry) => entry.track).toSet();
       if (trackIds.length != _entries.length) {
         throw InvariantViolationError(
           'Duplicate tracks are not allowed when allowDuplicates is false.',
@@ -684,7 +684,7 @@ class Playlist with Publishable<PlaylistEvent> {
       throw InvariantViolationError('Cannot add deprecated track.');
     }
 
-    if (!allowDuplicates && _entries.any((e) => e.track == track)) {
+    if (!allowDuplicates && _entries.any((entry) => entry.track == track)) {
       throw InvariantViolationError('Duplicate tracks are not allowed.');
     }
 
@@ -716,7 +716,9 @@ class Playlist with Publishable<PlaylistEvent> {
       throw ArgumentError('newIndex out of bounds.');
     }
 
-    final targetIndex = _entries.indexWhere((e) => e.identifier == entry);
+    final targetIndex = _entries.indexWhere(
+      (playlistEntry) => playlistEntry.identifier == entry,
+    );
 
     if (targetIndex == -1) {
       throw InvariantViolationError('Entry not found.');
@@ -747,7 +749,9 @@ class Playlist with Publishable<PlaylistEvent> {
   }
 
   void removeTrack({required PlaylistEntryIdentifier entry}) {
-    final targetIndex = _entries.indexWhere((e) => e.identifier == entry);
+    final targetIndex = _entries.indexWhere(
+      (playlistEntry) => playlistEntry.identifier == entry,
+    );
 
     if (targetIndex == -1) {
       throw InvariantViolationError('Entry not found.');
@@ -777,7 +781,7 @@ class Playlist with Publishable<PlaylistEvent> {
 }
 
 abstract interface class PlaylistRepository {
-  Future<Playlist?> find(PlaylistIdentifier identifier);
+  Future<Playlist> find(PlaylistIdentifier identifier);
   Future<List<Playlist>> all();
   Future<void> persist(Playlist playlist);
   Future<void> terminate(PlaylistIdentifier identifier);

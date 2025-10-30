@@ -577,7 +577,7 @@ class Parser {
       '^',
     ]);
 
-    return all.where((c) => !excluded.contains(c)).toList();
+    return all.where((character) => !excluded.contains(character)).toList();
   }
 
   int _readNumber() {
@@ -594,7 +594,7 @@ class Parser {
   static bool isDigit(String c) =>
       c.codeUnitAt(0) ^ 0x30 <= 9 && c.codeUnitAt(0) >= 0x30;
 
-  bool _isMeta(String c) => '()[]{}|*+?.'.contains(c);
+  bool _isMeta(String character) => '()[]{}|*+?.'.contains(character);
   List<String> _range(String a, String b) {
     final sa = a.codeUnitAt(0), sb = b.codeUnitAt(0);
     final lo = min(sa, sb), hi = max(sa, sb);

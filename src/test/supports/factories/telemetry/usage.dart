@@ -6,6 +6,7 @@ import 'package:ulid/ulid.dart';
 
 import '../common.dart';
 import '../common/date.dart';
+import '../common/error.dart';
 import '../common/identifier.dart';
 import '../common/transaction.dart';
 import '../enum.dart';
@@ -390,7 +391,7 @@ class _TelemetryConsentRepository implements TelemetryConsentRepository {
     final instance = _instances[identifier];
 
     if (instance == null) {
-      throw StateError(
+      throw AggregateNotFoundError(
         'TelemetryConsent with identifier ${identifier.value} not found.',
       );
     }
@@ -399,14 +400,24 @@ class _TelemetryConsentRepository implements TelemetryConsentRepository {
   }
 
   @override
-  Future<TelemetryConsent?> findByProfile(ProfileIdentifier profile) {
+  Future<TelemetryConsent> findByProfile(ProfileIdentifier profile) {
     final identifier = _profileIndex[profile];
 
     if (identifier == null) {
-      return Future.value(null);
+      throw AggregateNotFoundError(
+        'TelemetryConsent with profile ${profile.value} not found.',
+      );
     }
 
-    return Future.value(_instances[identifier]);
+    final instance = _instances[identifier];
+
+    if (instance == null) {
+      throw AggregateNotFoundError(
+        'TelemetryConsent with identifier ${identifier.value} not found.',
+      );
+    }
+
+    return Future.value(instance);
   }
 
   @override

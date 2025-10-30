@@ -512,7 +512,7 @@ abstract interface class UsageMetricsRepository {
 
 abstract interface class TelemetryConsentRepository {
   Future<TelemetryConsent> find(TelemetryConsentIdentifier identifier);
-  Future<TelemetryConsent?> findByProfile(ProfileIdentifier profile);
+  Future<TelemetryConsent> findByProfile(ProfileIdentifier profile);
   Future<void> persist(TelemetryConsent consent);
 }
 

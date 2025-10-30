@@ -1000,7 +1000,7 @@ class CatalogRedownloadRequested extends CatalogDownloadEvent {
 
 abstract interface class CatalogDownloadJobRepository {
   Future<CatalogDownloadJob> find(CatalogDownloadJobIdentifier identifier);
-  Future<CatalogDownloadJob?> findOrNull(
+  Future<CatalogDownloadJob> findOrNull(
     CatalogDownloadJobIdentifier identifier,
   );
   Future<void> persist(CatalogDownloadJob job);
@@ -1010,7 +1010,7 @@ abstract interface class CatalogDownloadJobRepository {
   });
   Future<List<CatalogDownloadJob>> findPending({int? limit = 10});
   Future<List<CatalogDownloadJob>> findRetryable({int? limit});
-  Future<CatalogDownloadJob?> findByCatalogTrack(CatalogTrackIdentifier track);
+  Future<CatalogDownloadJob> findByCatalogTrack(CatalogTrackIdentifier track);
   Future<void> terminate(CatalogDownloadJobIdentifier identifier);
 }
 
