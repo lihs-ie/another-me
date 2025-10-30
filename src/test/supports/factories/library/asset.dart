@@ -1,8 +1,7 @@
 import 'package:another_me/domains/common/storage.dart';
 import 'package:another_me/domains/common/url.dart';
-import 'package:another_me/domains/import/catalog.dart';
+import 'package:another_me/domains/import/import.dart';
 import 'package:another_me/domains/library/asset.dart';
-import 'package:crypto/crypto.dart';
 
 import '../common.dart';
 import '../common/date.dart';
@@ -11,81 +10,8 @@ import '../common/identifier.dart';
 import '../common/storage.dart';
 import '../common/url.dart';
 import '../enum.dart';
-
-import 'package:thirds/blake3.dart';
-
 import '../import/catalog.dart';
 import '../string.dart';
-
-class ChecksumAlgorithmFactory extends EnumFactory<ChecksumAlgorithm> {
-  ChecksumAlgorithmFactory() : super(ChecksumAlgorithm.values);
-}
-
-class _ChecksumCalculator implements ChecksumCalculator {
-  @override
-  Checksum calculate(FilePath path, ChecksumAlgorithm algorithm) {
-    final value = switch (algorithm) {
-      ChecksumAlgorithm.sha256 =>
-        sha256.convert(path.value.codeUnits).toString(),
-      ChecksumAlgorithm.blake3 => blake3(
-        path.value.codeUnits,
-      ).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join(),
-    };
-
-    return Checksum(algorithm: algorithm, value: value);
-  }
-}
-
-class ChecksumCalculatorFactory extends Factory<ChecksumCalculator, void> {
-  @override
-  ChecksumCalculator create({void overrides, required int seed}) {
-    return _ChecksumCalculator();
-  }
-
-  @override
-  ChecksumCalculator duplicate(ChecksumCalculator instance, void overrides) {
-    throw UnimplementedError();
-  }
-}
-
-class ChecksumFactory
-    extends Factory<Checksum, ({ChecksumAlgorithm? algorithm, String? value})> {
-  @override
-  Checksum create({
-    ({ChecksumAlgorithm? algorithm, String? value})? overrides,
-    required int seed,
-  }) {
-    final algorithm =
-        overrides?.algorithm ??
-        Builder(ChecksumAlgorithmFactory()).buildWith(seed: seed);
-
-    final calculator = Builder(
-      ChecksumCalculatorFactory(),
-    ).buildWith(seed: seed);
-
-    final value =
-        overrides?.value ??
-        calculator
-            .calculate(
-              Builder(FilePathFactory()).buildWith(seed: seed),
-              algorithm,
-            )
-            .value;
-
-    return Checksum(algorithm: algorithm, value: value);
-  }
-
-  @override
-  Checksum duplicate(
-    Checksum instance,
-    ({ChecksumAlgorithm? algorithm, String? value})? overrides,
-  ) {
-    final algorithm = overrides?.algorithm ?? instance.algorithm;
-    final value = overrides?.value ?? instance.value;
-
-    return Checksum(algorithm: algorithm, value: value);
-  }
-}
 
 class FileResourceFactory
     extends

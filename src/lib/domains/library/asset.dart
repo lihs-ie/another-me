@@ -6,53 +6,9 @@ import 'package:another_me/domains/common/storage.dart';
 import 'package:another_me/domains/common/url.dart';
 import 'package:another_me/domains/common/value_object.dart';
 import 'package:another_me/domains/common/variant.dart';
-import 'package:another_me/domains/import/catalog.dart';
+import 'package:another_me/domains/import/import.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ulid/ulid.dart';
-
-enum ChecksumAlgorithm { sha256, blake3 }
-
-abstract interface class ChecksumCalculator {
-  Checksum calculate(FilePath path, ChecksumAlgorithm algorithm);
-}
-
-class Checksum implements ValueObject {
-  static const String valuePattern = r'^[0-9a-fA-F]+$';
-  final ChecksumAlgorithm algorithm;
-  final String value;
-
-  Checksum({required this.algorithm, required this.value}) {
-    final expectedLength = switch (algorithm) {
-      ChecksumAlgorithm.sha256 => 64,
-      ChecksumAlgorithm.blake3 => 64,
-    };
-
-    Invariant.length(
-      value: value,
-      name: 'value',
-      min: expectedLength,
-      max: expectedLength,
-    );
-
-    Invariant.pattern(value: value, name: 'value', pattern: valuePattern);
-  }
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) {
-      return true;
-    }
-
-    if (other is! Checksum) {
-      return false;
-    }
-
-    return algorithm == other.algorithm && value == other.value;
-  }
-
-  @override
-  int get hashCode => Object.hash(algorithm, value);
-}
 
 class FileResource implements ValueObject {
   final FilePath path;

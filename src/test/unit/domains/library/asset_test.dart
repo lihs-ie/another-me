@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:another_me/domains/common/storage.dart';
 import 'package:another_me/domains/common/variant.dart';
-import 'package:another_me/domains/import/catalog.dart';
+import 'package:another_me/domains/import/import.dart';
 import 'package:another_me/domains/library/asset.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ulid/ulid.dart';
@@ -19,29 +19,6 @@ import '../common/value_object.dart';
 
 void main() {
   group('Package domains/library/animation/asset', () {
-    group('ChecksumAlgorithm', () {
-      test('declares all defined enumerators.', () {
-        expect(ChecksumAlgorithm.sha256, isA<ChecksumAlgorithm>());
-        expect(ChecksumAlgorithm.blake3, isA<ChecksumAlgorithm>());
-      });
-    });
-
-    valueObjectTest(
-      constructor: (({ChecksumAlgorithm algorithm, String value}) props) =>
-          Checksum(algorithm: props.algorithm, value: props.value),
-      generator: () => (algorithm: ChecksumAlgorithm.sha256, value: 'a' * 64),
-      variations: (({ChecksumAlgorithm algorithm, String value}) props) => [
-        (algorithm: ChecksumAlgorithm.blake3, value: '0123456789abcdef' * 4),
-        (algorithm: props.algorithm, value: 'b' * 64),
-      ],
-      invalids: (({ChecksumAlgorithm algorithm, String value}) props) => [
-        (algorithm: ChecksumAlgorithm.sha256, value: 'a' * 63),
-        (algorithm: ChecksumAlgorithm.sha256, value: 'a' * 65),
-        (algorithm: ChecksumAlgorithm.sha256, value: 'g' * 64),
-        (algorithm: ChecksumAlgorithm.blake3, value: ''),
-      ],
-    );
-
     group('FileResource', () {
       group('instantiate', () {
         group('successfully with', () {

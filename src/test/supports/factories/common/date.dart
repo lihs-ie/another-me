@@ -66,3 +66,42 @@ class DateTimeFactory extends Factory<DateTime, ({int? drift})> {
     return instance.add(Duration(days: overrides?.drift ?? 0));
   }
 }
+
+class TimelineFactory
+    extends Factory<Timeline, ({DateTime? createdAt, DateTime? updatedAt})> {
+  @override
+  Timeline create({
+    ({DateTime? createdAt, DateTime? updatedAt})? overrides,
+    required int seed,
+  }) {
+    final createdAt =
+        overrides?.createdAt ??
+        Builder(DateTimeFactory()).buildWith(seed: seed);
+
+    final updatedAt =
+        overrides?.updatedAt ??
+        createdAt.add(Duration(milliseconds: seed % 1000));
+
+    return Timeline(createdAt: createdAt, updatedAt: updatedAt);
+  }
+
+  @override
+  Timeline duplicate(
+    Timeline instance,
+    ({DateTime? createdAt, DateTime? updatedAt})? overrides,
+  ) {
+    final createdAt =
+        overrides?.createdAt ??
+        Builder(
+          DateTimeFactory(),
+        ).duplicate(instance: instance.createdAt, overrides: null);
+
+    final updatedAt =
+        overrides?.updatedAt ??
+        Builder(
+          DateTimeFactory(),
+        ).duplicate(instance: instance.updatedAt, overrides: null);
+
+    return Timeline(createdAt: createdAt, updatedAt: updatedAt);
+  }
+}

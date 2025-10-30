@@ -2,6 +2,18 @@ import 'package:another_me/domains/common/number.dart';
 
 import '../common.dart';
 
+class DoubleFactory extends Factory<double, ({double? value})> {
+  @override
+  double create({({double? value})? overrides, required int seed}) {
+    return overrides?.value ?? (seed % 10000) / 100.0;
+  }
+
+  @override
+  double duplicate(double instance, ({double? value})? overrides) {
+    return overrides?.value ?? instance;
+  }
+}
+
 typedef RationalOverrides = ({BigInt? numerator, BigInt? denominator});
 
 class RationalFactory extends Factory<Rational, RationalOverrides> {

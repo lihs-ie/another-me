@@ -78,3 +78,83 @@ class FilePath implements ValueObject {
   @override
   int get hashCode => Object.hash(value, os);
 }
+
+enum ChecksumAlgorithm { sha256, blake3 }
+
+extension ChecksumAlgorithmExtension on ChecksumAlgorithm {
+  int get expectedHexLength {
+    switch (this) {
+      case ChecksumAlgorithm.sha256:
+        return 64;
+      case ChecksumAlgorithm.blake3:
+        return 64;
+    }
+  }
+
+  String get algorithmName {
+    switch (this) {
+      case ChecksumAlgorithm.sha256:
+        return 'sha256';
+      case ChecksumAlgorithm.blake3:
+        return 'blake3';
+    }
+  }
+
+  static ChecksumAlgorithm fromString(String name) {
+    switch (name) {
+      case 'sha256':
+        return ChecksumAlgorithm.sha256;
+      case 'blake3':
+        return ChecksumAlgorithm.blake3;
+      default:
+        throw InvariantViolationError(
+          'Unsupported checksum algorithm: $name. '
+          'Supported algorithms: sha256, blake3',
+        );
+    }
+  }
+}
+
+class Checksum implements ValueObject {
+  final ChecksumAlgorithm algorithm;
+  final String value;
+
+  static const hexPattern = r'^[0-9a-fA-F]+$';
+
+  Checksum({required this.algorithm, required this.value}) {
+    final expectedLength = algorithm.expectedHexLength;
+    Invariant.length(
+      value: value,
+      name: 'value',
+      min: expectedLength,
+      max: expectedLength,
+    );
+
+    Invariant.pattern(value: value, name: 'value', pattern: hexPattern);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) {
+      return true;
+    }
+
+    if (other is! Checksum) {
+      return false;
+    }
+
+    return algorithm == other.algorithm &&
+        value.toLowerCase() == other.value.toLowerCase();
+  }
+
+  @override
+  int get hashCode => Object.hash(algorithm, value.toLowerCase());
+}
+
+abstract interface class ChecksumCalculator {
+  Checksum calculate(FilePath path, ChecksumAlgorithm algorithm);
+}
+
+class ChecksumMismatchError extends StateError {
+  ChecksumMismatchError(super.message);
+}

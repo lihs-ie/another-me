@@ -105,10 +105,6 @@ class EventPayload implements ValueObject {
   factory EventPayload.empty() {
     return EventPayload(data: {});
   }
-
-  Map<String, Object> toJson() {
-    return Map.unmodifiable(_data);
-  }
 }
 
 enum UsageEventType {
