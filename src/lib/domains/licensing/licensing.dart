@@ -663,7 +663,7 @@ class LicenseRecord with Publishable<LicenseRecordEvent> {
 }
 
 abstract class LicenseRecordRepository {
-  Future<LicenseRecord?> find(LicenseIdentifier identifier);
+  Future<LicenseRecord> find(LicenseIdentifier identifier);
 
   Future<void> persist(LicenseRecord record);
 
@@ -847,10 +847,6 @@ class AttributionBook with Publishable<AttributionBookEvent> {
   ) async {
     final licenseRecord = await licenseRecordRepository.find(entry.license);
 
-    if (licenseRecord == null) {
-      throw InvariantViolationError('Referenced license does not exist.');
-    }
-
     if (licenseRecord.currentStatus != LicenseStatus.active) {
       throw InvariantViolationError('Referenced license is not active.');
     }
@@ -948,12 +944,6 @@ class AttributionPublishSubscriber implements EventSubscriber {
       _transaction.execute(() async {
         final licenseRecord = await _licenseRepository.find(event.identifier);
         final attributionBook = await _attributionBookRepository.current();
-
-        if (licenseRecord == null) {
-          throw StateError(
-            'LicenseRecord with identifier ${event.identifier} not found.',
-          );
-        }
 
         final entry = AttributionEntry(
           resource: AttributionResourceIdentifier.generate(),

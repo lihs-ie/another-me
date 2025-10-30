@@ -4,6 +4,7 @@ import 'package:another_me/domains/licensing/licensing.dart';
 import 'package:another_me/domains/media/media.dart';
 
 import '../common.dart';
+import '../common/error.dart';
 import '../common/identifier.dart';
 import '../common/storage.dart';
 import '../common/url.dart';
@@ -586,8 +587,16 @@ class _LicenseRecordRepository implements LicenseRecordRepository {
        _onPersist = onPersist;
 
   @override
-  Future<LicenseRecord?> find(LicenseIdentifier identifier) {
-    return Future.value(_instances[identifier]);
+  Future<LicenseRecord> find(LicenseIdentifier identifier) {
+    final instance = _instances[identifier];
+
+    if (instance == null) {
+      throw AggregateNotFoundError(
+        'LicenseRecord with identifier ${identifier.value} not found.',
+      );
+    }
+
+    return Future.value(instance);
   }
 
   @override
