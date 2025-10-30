@@ -1,3 +1,4 @@
+import 'package:another_me/domains/common/date.dart';
 import 'package:another_me/domains/common/range.dart';
 import 'package:another_me/domains/common/url.dart';
 import 'package:another_me/domains/common/variant.dart';
@@ -517,7 +518,10 @@ void main() {
               estimatedSizeBytes: null,
               metadata: null,
               status: DownloadStatus.downloading,
-              timeline: null,
+              timeline: Timeline(
+                createdAt: DateTime(2025, 1, 1, 10, 0),
+                updatedAt: DateTime(2025, 1, 1, 10, 0),
+              ),
               checksums: Builder(
                 VerificationChecksumsFactory(),
               ).build(overrides: (expected: expectedChecksum, actual: null)),

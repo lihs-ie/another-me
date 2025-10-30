@@ -547,7 +547,10 @@ void main() {
               identifier: null,
               profile: null,
               channelSettings: null,
-              quietHours: null,
+              quietHours: QuietHours(
+                startTime: const TimeOfDay(hour: 22, minute: 0),
+                endTime: const TimeOfDay(hour: 7, minute: 0),
+              ),
               dndEnabled: false,
               history: history,
               minimumNotificationInterval: const Duration(minutes: 5),
@@ -599,8 +602,8 @@ void main() {
               channelSettings: {'PomodoroPhaseStarted': setting},
               quietHours: quietHours,
               dndEnabled: false,
-              history: null,
-              minimumNotificationInterval: null,
+              history: NotificationHistory.empty(),
+              minimumNotificationInterval: const Duration(minutes: 5),
             ),
           );
 
