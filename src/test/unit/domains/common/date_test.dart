@@ -1,5 +1,4 @@
 import 'package:another_me/domains/common/date.dart';
-import 'package:another_me/domains/common/variant.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../supports/helper/math.dart';

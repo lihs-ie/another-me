@@ -1,10 +1,16 @@
 import 'package:another_me/domains/avatar/avatar.dart';
+import 'package:another_me/domains/billing/billing.dart';
+import 'package:another_me/domains/common/error.dart';
+import 'package:another_me/domains/common/transaction.dart';
+import 'package:logger/logger.dart';
 import 'package:ulid/ulid.dart';
 
+import '../billing/billing.dart';
 import '../common.dart';
-import '../common/error.dart';
 import '../common/identifier.dart';
+import '../common/transaction.dart';
 import '../enum.dart';
+import '../logger.dart';
 import '../string.dart' as string_factory;
 import 'animation.dart';
 import 'wardrobe.dart';
@@ -311,6 +317,144 @@ class CharacterRepositoryFactory
   CharacterRepository duplicate(
     CharacterRepository instance,
     CharacterRepositoryOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+typedef DayPeriodChangedSubscriberOverrides = ({
+  CharacterRepository? characterRepository,
+  Transaction? transaction,
+  Logger? logger,
+});
+
+class DayPeriodChangedSubscriberFactory
+    extends
+        Factory<
+          DayPeriodChangedSubscriber,
+          DayPeriodChangedSubscriberOverrides
+        > {
+  @override
+  DayPeriodChangedSubscriber create({
+    DayPeriodChangedSubscriberOverrides? overrides,
+    required int seed,
+  }) {
+    final characterRepository =
+        overrides?.characterRepository ??
+        Builder(CharacterRepositoryFactory()).buildWith(seed: seed);
+
+    final transaction =
+        overrides?.transaction ??
+        Builder(TransactionFactory()).buildWith(seed: seed);
+
+    final logger =
+        overrides?.logger ?? Builder(LoggerFactory()).buildWith(seed: seed);
+
+    return DayPeriodChangedSubscriber(
+      characterRepository: characterRepository,
+      transaction: transaction,
+      logger: logger,
+    );
+  }
+
+  @override
+  DayPeriodChangedSubscriber duplicate(
+    DayPeriodChangedSubscriber instance,
+    DayPeriodChangedSubscriberOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+typedef AssetCatalogUpdatedSubscriberOverrides = ({
+  CharacterRepository? characterRepository,
+  Transaction? transaction,
+  Logger? logger,
+});
+
+class AssetCatalogUpdatedSubscriberFactory
+    extends
+        Factory<
+          AssetCatalogUpdatedSubscriber,
+          AssetCatalogUpdatedSubscriberOverrides
+        > {
+  @override
+  AssetCatalogUpdatedSubscriber create({
+    AssetCatalogUpdatedSubscriberOverrides? overrides,
+    required int seed,
+  }) {
+    final characterRepository =
+        overrides?.characterRepository ??
+        Builder(CharacterRepositoryFactory()).buildWith(seed: seed);
+
+    final transaction =
+        overrides?.transaction ??
+        Builder(TransactionFactory()).buildWith(seed: seed);
+
+    final logger =
+        overrides?.logger ?? Builder(LoggerFactory()).buildWith(seed: seed);
+
+    return AssetCatalogUpdatedSubscriber(
+      characterRepository: characterRepository,
+      transaction: transaction,
+      logger: logger,
+    );
+  }
+
+  @override
+  AssetCatalogUpdatedSubscriber duplicate(
+    AssetCatalogUpdatedSubscriber instance,
+    AssetCatalogUpdatedSubscriberOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+typedef EntitlementChangedSubscriberOverrides = ({
+  EntitlementRepository? entitlementRepository,
+  CharacterRepository? characterRepository,
+  Transaction? transaction,
+  Logger? logger,
+});
+
+class EntitlementChangedSubscriberFactory
+    extends
+        Factory<
+          EntitlementChangedSubscriber,
+          EntitlementChangedSubscriberOverrides
+        > {
+  @override
+  EntitlementChangedSubscriber create({
+    EntitlementChangedSubscriberOverrides? overrides,
+    required int seed,
+  }) {
+    final entitlementRepository =
+        overrides?.entitlementRepository ??
+        Builder(EntitlementRepositoryFactory()).buildWith(seed: seed);
+
+    final characterRepository =
+        overrides?.characterRepository ??
+        Builder(CharacterRepositoryFactory()).buildWith(seed: seed);
+
+    final transaction =
+        overrides?.transaction ??
+        Builder(TransactionFactory()).buildWith(seed: seed);
+
+    final logger =
+        overrides?.logger ?? Builder(LoggerFactory()).buildWith(seed: seed);
+
+    return EntitlementChangedSubscriber(
+      entitlementRepository: entitlementRepository,
+      characterRepository: characterRepository,
+      transaction: transaction,
+      logger: logger,
+    );
+  }
+
+  @override
+  EntitlementChangedSubscriber duplicate(
+    EntitlementChangedSubscriber instance,
+    EntitlementChangedSubscriberOverrides? overrides,
   ) {
     throw UnimplementedError();
   }

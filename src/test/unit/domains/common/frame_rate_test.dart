@@ -1,5 +1,4 @@
 import 'package:another_me/domains/common/frame_rate.dart';
-import 'package:another_me/domains/common/variant.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'value_object.dart';

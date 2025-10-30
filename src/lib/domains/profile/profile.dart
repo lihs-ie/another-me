@@ -117,6 +117,9 @@ class AppearanceSettings implements ValueObject {
 
     return true;
   }
+
+  @override
+  int get hashCode => Object.hash(character, scene, theme, outfitMode);
 }
 
 class PlaybackSettings implements ValueObject {
@@ -166,6 +169,9 @@ class PlaybackSettings implements ValueObject {
 
     return true;
   }
+
+  @override
+  int get hashCode => Object.hash(loopMode, fade, volume, mute, outputDevice);
 }
 
 class PomodoroPolicy implements ValueObject {

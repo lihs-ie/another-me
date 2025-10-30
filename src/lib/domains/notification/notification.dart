@@ -1,9 +1,13 @@
 import 'package:another_me/domains/common/event.dart';
 import 'package:another_me/domains/common/identifier.dart';
+import 'package:another_me/domains/common/transaction.dart';
 import 'package:another_me/domains/common/value_object.dart';
 import 'package:another_me/domains/common/variant.dart';
+import 'package:another_me/domains/media/media.dart';
 import 'package:another_me/domains/profile/profile.dart';
+import 'package:another_me/domains/work/work.dart';
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
 import 'package:ulid/ulid.dart';
 
 enum TemplatePlaceholder {
@@ -693,4 +697,94 @@ class NotificationRule with Publishable<NotificationEvent> {
 abstract class NotificationRuleRepository {
   Future<NotificationRule> find(ProfileIdentifier identifier);
   Future<void> persist(NotificationRule rule);
+}
+
+class PomodoroNotificationSubscriber implements EventSubscriber {
+  final NotificationRuleRepository notificationRuleRepository;
+  final Transaction transaction;
+  final Logger logger;
+
+  PomodoroNotificationSubscriber({
+    required this.notificationRuleRepository,
+    required this.transaction,
+    required this.logger,
+  });
+
+  @override
+  void subscribe(EventBroker broker) {
+    broker.listen<PomodoroPhaseStarted>(_onPomodoroPhaseStarted);
+    broker.listen<PomodoroSessionCompleted>(_onPomodoroSessionCompleted);
+  }
+
+  void _onPomodoroPhaseStarted(PomodoroPhaseStarted event) {
+    logger.d('Pomodoro phase started: ${event.phase}');
+  }
+
+  void _onPomodoroSessionCompleted(PomodoroSessionCompleted event) {
+    logger.d('Pomodoro session completed: ${event.identifier.value}');
+  }
+}
+
+class MediaNotificationSubscriber implements EventSubscriber {
+  final NotificationRuleRepository notificationRuleRepository;
+  final Transaction transaction;
+  final Logger logger;
+
+  MediaNotificationSubscriber({
+    required this.notificationRuleRepository,
+    required this.transaction,
+    required this.logger,
+  });
+
+  @override
+  void subscribe(EventBroker broker) {
+    broker.listen<TrackRegistered>(_onTrackRegistered);
+    broker.listen<TrackDeprecated>(_onTrackDeprecated);
+  }
+
+  void _onTrackRegistered(TrackRegistered event) {
+    logger.d('Track registered: ${event.identifier.value}');
+  }
+
+  void _onTrackDeprecated(TrackDeprecated event) {
+    logger.d('Track deprecated: ${event.identifier.value}');
+  }
+}
+
+class DayPeriodNotificationSubscriber implements EventSubscriber {
+  final NotificationRuleRepository notificationRuleRepository;
+  final Transaction transaction;
+  final Logger logger;
+
+  DayPeriodNotificationSubscriber({
+    required this.notificationRuleRepository,
+    required this.transaction,
+    required this.logger,
+  });
+
+  @override
+  void subscribe(EventBroker broker) {
+    broker.listen<DayPeriodChanged>(_onDayPeriodChanged);
+  }
+
+  void _onDayPeriodChanged(DayPeriodChanged event) {
+    logger.d('Day period changed to: ${event.period}');
+  }
+}
+
+class NotificationDisplaySubscriber implements EventSubscriber {
+  final Logger logger;
+
+  NotificationDisplaySubscriber({required this.logger});
+
+  @override
+  void subscribe(EventBroker broker) {
+    broker.listen<NotificationRequested>(_onNotificationRequested);
+  }
+
+  void _onNotificationRequested(NotificationRequested event) {
+    logger.i(
+      'Notification requested: ${event.renderedMessage} on channels: ${event.channels}',
+    );
+  }
 }

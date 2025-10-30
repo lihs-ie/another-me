@@ -495,7 +495,10 @@ void main() {
 
             final events = monitor.events();
             expect(events.length, equals(4));
-            expect(events.every((e) => e is PerformanceBudgetExceeded), isTrue);
+            expect(
+              events.every((event) => event is PerformanceBudgetExceeded),
+              isTrue,
+            );
           },
         );
       });

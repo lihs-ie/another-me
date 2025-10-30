@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:another_me/domains/common/storage.dart';
 import 'package:another_me/domains/common/variant.dart';
 import 'package:another_me/domains/library/animation/atlas.dart';

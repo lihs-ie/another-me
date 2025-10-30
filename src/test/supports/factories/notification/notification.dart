@@ -1,12 +1,16 @@
+import 'package:another_me/domains/common/error.dart';
+import 'package:another_me/domains/common/transaction.dart';
 import 'package:another_me/domains/notification/notification.dart';
 import 'package:another_me/domains/profile/profile.dart';
 import 'package:flutter/material.dart' hide Builder;
+import 'package:logger/logger.dart';
 import 'package:ulid/ulid.dart';
 
 import '../common.dart';
-import '../common/error.dart';
 import '../common/identifier.dart';
+import '../common/transaction.dart';
 import '../enum.dart';
+import '../logger.dart';
 import '../profile/profile.dart';
 import '../string.dart';
 
@@ -572,6 +576,166 @@ class NotificationRuleRepositoryFactory
   NotificationRuleRepository duplicate(
     NotificationRuleRepository instance,
     NotificationRuleRepositoryOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+typedef PomodoroNotificationSubscriberOverrides = ({
+  NotificationRuleRepository? notificationRuleRepository,
+  Transaction? transaction,
+  Logger? logger,
+});
+
+class PomodoroNotificationSubscriberFactory
+    extends
+        Factory<
+          PomodoroNotificationSubscriber,
+          PomodoroNotificationSubscriberOverrides
+        > {
+  @override
+  PomodoroNotificationSubscriber create({
+    PomodoroNotificationSubscriberOverrides? overrides,
+    required int seed,
+  }) {
+    final notificationRuleRepository =
+        overrides?.notificationRuleRepository ??
+        Builder(NotificationRuleRepositoryFactory()).buildWith(seed: seed);
+
+    final transaction =
+        overrides?.transaction ??
+        Builder(TransactionFactory()).buildWith(seed: seed);
+
+    final logger =
+        overrides?.logger ?? Builder(LoggerFactory()).buildWith(seed: seed);
+
+    return PomodoroNotificationSubscriber(
+      notificationRuleRepository: notificationRuleRepository,
+      transaction: transaction,
+      logger: logger,
+    );
+  }
+
+  @override
+  PomodoroNotificationSubscriber duplicate(
+    PomodoroNotificationSubscriber instance,
+    PomodoroNotificationSubscriberOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+typedef MediaNotificationSubscriberOverrides = ({
+  NotificationRuleRepository? notificationRuleRepository,
+  Transaction? transaction,
+  Logger? logger,
+});
+
+class MediaNotificationSubscriberFactory
+    extends
+        Factory<
+          MediaNotificationSubscriber,
+          MediaNotificationSubscriberOverrides
+        > {
+  @override
+  MediaNotificationSubscriber create({
+    MediaNotificationSubscriberOverrides? overrides,
+    required int seed,
+  }) {
+    final notificationRuleRepository =
+        overrides?.notificationRuleRepository ??
+        Builder(NotificationRuleRepositoryFactory()).buildWith(seed: seed);
+
+    final transaction =
+        overrides?.transaction ??
+        Builder(TransactionFactory()).buildWith(seed: seed);
+
+    final logger =
+        overrides?.logger ?? Builder(LoggerFactory()).buildWith(seed: seed);
+
+    return MediaNotificationSubscriber(
+      notificationRuleRepository: notificationRuleRepository,
+      transaction: transaction,
+      logger: logger,
+    );
+  }
+
+  @override
+  MediaNotificationSubscriber duplicate(
+    MediaNotificationSubscriber instance,
+    MediaNotificationSubscriberOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+typedef DayPeriodNotificationSubscriberOverrides = ({
+  NotificationRuleRepository? notificationRuleRepository,
+  Transaction? transaction,
+  Logger? logger,
+});
+
+class DayPeriodNotificationSubscriberFactory
+    extends
+        Factory<
+          DayPeriodNotificationSubscriber,
+          DayPeriodNotificationSubscriberOverrides
+        > {
+  @override
+  DayPeriodNotificationSubscriber create({
+    DayPeriodNotificationSubscriberOverrides? overrides,
+    required int seed,
+  }) {
+    final notificationRuleRepository =
+        overrides?.notificationRuleRepository ??
+        Builder(NotificationRuleRepositoryFactory()).buildWith(seed: seed);
+
+    final transaction =
+        overrides?.transaction ??
+        Builder(TransactionFactory()).buildWith(seed: seed);
+
+    final logger =
+        overrides?.logger ?? Builder(LoggerFactory()).buildWith(seed: seed);
+
+    return DayPeriodNotificationSubscriber(
+      notificationRuleRepository: notificationRuleRepository,
+      transaction: transaction,
+      logger: logger,
+    );
+  }
+
+  @override
+  DayPeriodNotificationSubscriber duplicate(
+    DayPeriodNotificationSubscriber instance,
+    DayPeriodNotificationSubscriberOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+typedef NotificationDisplaySubscriberOverrides = ({Logger? logger});
+
+class NotificationDisplaySubscriberFactory
+    extends
+        Factory<
+          NotificationDisplaySubscriber,
+          NotificationDisplaySubscriberOverrides
+        > {
+  @override
+  NotificationDisplaySubscriber create({
+    NotificationDisplaySubscriberOverrides? overrides,
+    required int seed,
+  }) {
+    final logger =
+        overrides?.logger ?? Builder(LoggerFactory()).buildWith(seed: seed);
+
+    return NotificationDisplaySubscriber(logger: logger);
+  }
+
+  @override
+  NotificationDisplaySubscriber duplicate(
+    NotificationDisplaySubscriber instance,
+    NotificationDisplaySubscriberOverrides? overrides,
   ) {
     throw UnimplementedError();
   }

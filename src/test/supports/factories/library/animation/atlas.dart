@@ -1,9 +1,9 @@
+import 'package:another_me/domains/common/error.dart';
 import 'package:another_me/domains/common/storage.dart';
 import 'package:another_me/domains/library/animation/atlas.dart';
 import 'package:another_me/domains/library/animation/common.dart';
 
 import '../../common.dart';
-import '../../common/error.dart';
 import '../../common/identifier.dart';
 import '../../common/storage.dart';
 import 'common.dart';

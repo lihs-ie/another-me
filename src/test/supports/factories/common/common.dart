@@ -1,5 +1,4 @@
 export 'date.dart';
-export 'error.dart';
 export 'identifier.dart';
 export 'locale.dart';
 export 'number.dart';

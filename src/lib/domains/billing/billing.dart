@@ -1,9 +1,14 @@
 import 'dart:typed_data';
 
+import 'package:another_me/domains/avatar/character.dart';
+import 'package:another_me/domains/common/error.dart';
 import 'package:another_me/domains/common/event.dart';
 import 'package:another_me/domains/common/identifier.dart';
+import 'package:another_me/domains/common/transaction.dart';
 import 'package:another_me/domains/common/value_object.dart';
 import 'package:another_me/domains/common/variant.dart';
+import 'package:another_me/domains/media/media.dart';
+import 'package:logger/logger.dart';
 import 'package:ulid/ulid.dart';
 
 class Price implements ValueObject {
@@ -696,6 +701,7 @@ abstract class SubscriptionRepository {
 
 abstract class EntitlementRepository {
   Future<Entitlement> find(EntitlementIdentifier identifier);
+  Future<List<Entitlement>> all();
   Future<void> persist(Entitlement entitlement);
 }
 
@@ -704,4 +710,311 @@ abstract class EntitlementService {
   Future<bool> canUseCharacter(int currentCharacterCount);
   Future<int> getTrackLimit();
   Future<int> getCharacterLimit();
+}
+
+class SubscriptionSyncSubscriber implements EventSubscriber {
+  final SubscriptionRepository subscriptionRepository;
+  final PlanRepository planRepository;
+  final EntitlementRepository entitlementRepository;
+  final Transaction transaction;
+  final Logger logger;
+
+  SubscriptionSyncSubscriber({
+    required this.subscriptionRepository,
+    required this.planRepository,
+    required this.entitlementRepository,
+    required this.transaction,
+    required this.logger,
+  });
+
+  @override
+  void subscribe(EventBroker broker) {
+    broker.listen<SubscriptionActivated>(_onSubscriptionActivated(broker));
+    broker.listen<SubscriptionExpired>(_onSubscriptionExpired(broker));
+  }
+
+  void Function(SubscriptionActivated event) _onSubscriptionActivated(
+    EventBroker broker,
+  ) {
+    return (SubscriptionActivated event) async {
+      transaction.execute(() async {
+        final subscription = await subscriptionRepository.find(
+          event.subscription,
+        );
+        final plan = await planRepository.find(event.plan);
+        final entitlements = await entitlementRepository.all();
+        final entitlement = entitlements.firstWhere(
+          (entitlement) => entitlement.subscription == subscription.identifier,
+          orElse: () => throw AggregateNotFoundError(
+            'Entitlement with subscription ${subscription.identifier.value} not found.',
+          ),
+        );
+
+        entitlement.syncWithPlan(
+          planIdentifier: plan.identifier,
+          newLimits: plan.limits,
+        );
+
+        await entitlementRepository.persist(entitlement);
+
+        final events = entitlement.events();
+        for (final entitlementEvent in events) {
+          broker.publish(entitlementEvent);
+        }
+
+        logger.i(
+          'Subscription ${subscription.identifier.value} activated and synced with entitlement ${entitlement.identifier.value}.',
+        );
+      });
+    };
+  }
+
+  void Function(SubscriptionExpired event) _onSubscriptionExpired(
+    EventBroker broker,
+  ) {
+    return (SubscriptionExpired event) async {
+      transaction.execute(() async {
+        final subscription = await subscriptionRepository.find(
+          event.subscription,
+        );
+        final plan = await planRepository.find(subscription.plan);
+        final entitlements = await entitlementRepository.all();
+        final entitlement = entitlements.firstWhere(
+          (entitlement) => entitlement.subscription == subscription.identifier,
+          orElse: () => throw AggregateNotFoundError(
+            'Entitlement with subscription ${subscription.identifier.value} not found.',
+          ),
+        );
+
+        entitlement.syncWithPlan(
+          planIdentifier: plan.identifier,
+          newLimits: plan.limits,
+        );
+
+        await entitlementRepository.persist(entitlement);
+
+        final events = entitlement.events();
+        for (final entitlementEvent in events) {
+          broker.publish(entitlementEvent);
+        }
+
+        logger.i(
+          'Subscription ${subscription.identifier.value} expired and synced with entitlement ${entitlement.identifier.value}.',
+        );
+      });
+    };
+  }
+}
+
+class PlanManagementSubscriber implements EventSubscriber {
+  final PlanRepository planRepository;
+  final EntitlementRepository entitlementRepository;
+  final Transaction transaction;
+  final Logger logger;
+
+  PlanManagementSubscriber({
+    required this.planRepository,
+    required this.entitlementRepository,
+    required this.transaction,
+    required this.logger,
+  });
+
+  @override
+  void subscribe(EventBroker broker) {
+    broker.listen<PlanUpdated>(_onPlanUpdated(broker));
+  }
+
+  void Function(PlanUpdated event) _onPlanUpdated(EventBroker broker) {
+    return (PlanUpdated event) async {
+      transaction.execute(() async {
+        final plan = await planRepository.find(event.plan);
+        final allEntitlements = await entitlementRepository.all();
+        final targetEntitlements = allEntitlements
+            .where((entitlement) => entitlement.plan == plan.identifier)
+            .toList();
+
+        for (final entitlement in targetEntitlements) {
+          entitlement.syncWithPlan(
+            planIdentifier: plan.identifier,
+            newLimits: plan.limits,
+          );
+
+          await entitlementRepository.persist(entitlement);
+
+          final events = entitlement.events();
+          for (final entitlementEvent in events) {
+            broker.publish(entitlementEvent);
+          }
+        }
+
+        logger.i(
+          'Plan ${plan.identifier.value} updated and synced with ${targetEntitlements.length} entitlements.',
+        );
+      });
+    };
+  }
+}
+
+class MediaUsageSubscriber implements EventSubscriber {
+  final EntitlementRepository entitlementRepository;
+  final Transaction transaction;
+  final Logger logger;
+
+  MediaUsageSubscriber({
+    required this.entitlementRepository,
+    required this.transaction,
+    required this.logger,
+  });
+
+  @override
+  void subscribe(EventBroker broker) {
+    broker.listen<TrackRegistered>(_onTrackRegistered(broker));
+    broker.listen<TrackDeprecated>(_onTrackDeprecated(broker));
+  }
+
+  void Function(TrackRegistered event) _onTrackRegistered(EventBroker broker) {
+    return (TrackRegistered event) async {
+      transaction.execute(() async {
+        final entitlements = await entitlementRepository.all();
+
+        if (entitlements.isEmpty) {
+          logger.w('No entitlements found for media usage tracking.');
+          return;
+        }
+
+        final entitlement = entitlements.first;
+        final sequenceNumber = DateTime.now().millisecondsSinceEpoch;
+
+        entitlement.adjustUsage(
+          tracksDelta: 1,
+          charactersDelta: 0,
+          sequenceNumber: sequenceNumber,
+        );
+
+        await entitlementRepository.persist(entitlement);
+
+        final events = entitlement.events();
+        for (final entitlementEvent in events) {
+          broker.publish(entitlementEvent);
+        }
+
+        logger.i('Track registered. Entitlement usage updated.');
+      });
+    };
+  }
+
+  void Function(TrackDeprecated event) _onTrackDeprecated(EventBroker broker) {
+    return (TrackDeprecated event) async {
+      transaction.execute(() async {
+        final entitlements = await entitlementRepository.all();
+
+        if (entitlements.isEmpty) {
+          logger.w('No entitlements found for media usage tracking.');
+          return;
+        }
+
+        final entitlement = entitlements.first;
+        final sequenceNumber = DateTime.now().millisecondsSinceEpoch;
+
+        entitlement.adjustUsage(
+          tracksDelta: -1,
+          charactersDelta: 0,
+          sequenceNumber: sequenceNumber,
+        );
+
+        await entitlementRepository.persist(entitlement);
+
+        final events = entitlement.events();
+        for (final entitlementEvent in events) {
+          broker.publish(entitlementEvent);
+        }
+
+        logger.i('Track deprecated. Entitlement usage updated.');
+      });
+    };
+  }
+}
+
+class AvatarUsageSubscriber implements EventSubscriber {
+  final EntitlementRepository entitlementRepository;
+  final Transaction transaction;
+  final Logger logger;
+
+  AvatarUsageSubscriber({
+    required this.entitlementRepository,
+    required this.transaction,
+    required this.logger,
+  });
+
+  @override
+  void subscribe(EventBroker broker) {
+    broker.listen<CharacterUnlocked>(_onCharacterUnlocked(broker));
+    broker.listen<CharacterDeprecated>(_onCharacterDeprecated(broker));
+  }
+
+  void Function(CharacterUnlocked event) _onCharacterUnlocked(
+    EventBroker broker,
+  ) {
+    return (CharacterUnlocked event) async {
+      transaction.execute(() async {
+        final entitlements = await entitlementRepository.all();
+
+        if (entitlements.isEmpty) {
+          logger.w('No entitlements found for avatar usage tracking.');
+          return;
+        }
+
+        final entitlement = entitlements.first;
+        final sequenceNumber = DateTime.now().millisecondsSinceEpoch;
+
+        entitlement.adjustUsage(
+          tracksDelta: 0,
+          charactersDelta: 1,
+          sequenceNumber: sequenceNumber,
+        );
+
+        await entitlementRepository.persist(entitlement);
+
+        final events = entitlement.events();
+        for (final entitlementEvent in events) {
+          broker.publish(entitlementEvent);
+        }
+
+        logger.i('Character unlocked. Entitlement usage updated.');
+      });
+    };
+  }
+
+  void Function(CharacterDeprecated event) _onCharacterDeprecated(
+    EventBroker broker,
+  ) {
+    return (CharacterDeprecated event) async {
+      transaction.execute(() async {
+        final entitlements = await entitlementRepository.all();
+
+        if (entitlements.isEmpty) {
+          logger.w('No entitlements found for avatar usage tracking.');
+          return;
+        }
+
+        final entitlement = entitlements.first;
+        final sequenceNumber = DateTime.now().millisecondsSinceEpoch;
+
+        entitlement.adjustUsage(
+          tracksDelta: 0,
+          charactersDelta: -1,
+          sequenceNumber: sequenceNumber,
+        );
+
+        await entitlementRepository.persist(entitlement);
+
+        final events = entitlement.events();
+        for (final entitlementEvent in events) {
+          broker.publish(entitlementEvent);
+        }
+
+        logger.i('Character deprecated. Entitlement usage updated.');
+      });
+    };
+  }
 }

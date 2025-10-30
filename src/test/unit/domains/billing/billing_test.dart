@@ -1,11 +1,11 @@
 import 'package:another_me/domains/billing/billing.dart';
+import 'package:another_me/domains/common/error.dart';
 import 'package:another_me/domains/common/variant.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../../supports/factories/billing/billing.dart';
 import '../../../supports/factories/common.dart';
-import '../../../supports/factories/common/error.dart';
 import '../common/identifier.dart';
 import '../common/value_object.dart';
 

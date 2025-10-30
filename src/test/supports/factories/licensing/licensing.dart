@@ -1,14 +1,18 @@
+import 'package:another_me/domains/common/error.dart';
 import 'package:another_me/domains/common/storage.dart';
+import 'package:another_me/domains/common/transaction.dart';
 import 'package:another_me/domains/common/url.dart';
 import 'package:another_me/domains/licensing/licensing.dart';
 import 'package:another_me/domains/media/media.dart';
+import 'package:logger/logger.dart';
 
 import '../common.dart';
-import '../common/error.dart';
 import '../common/identifier.dart';
 import '../common/storage.dart';
+import '../common/transaction.dart';
 import '../common/url.dart';
 import '../enum.dart';
+import '../logger.dart';
 import '../media/media.dart';
 import '../string.dart';
 
@@ -708,6 +712,62 @@ class AttributionBookRepositoryFactory
   AttributionBookRepository duplicate(
     AttributionBookRepository instance,
     AttributionBookRepositoryOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+typedef LicenseRevocationSubscriberOverrides = ({
+  LicenseRecordRepository? licenseRepository,
+  TrackRepository? trackRepository,
+  AttributionBookRepository? attributionBookRepository,
+  Transaction? transaction,
+  Logger? logger,
+});
+
+class LicenseRevocationSubscriberFactory
+    extends
+        Factory<
+          LicenseRevocationSubscriber,
+          LicenseRevocationSubscriberOverrides
+        > {
+  @override
+  LicenseRevocationSubscriber create({
+    LicenseRevocationSubscriberOverrides? overrides,
+    required int seed,
+  }) {
+    final licenseRepository =
+        overrides?.licenseRepository ??
+        Builder(LicenseRecordRepositoryFactory()).buildWith(seed: seed);
+
+    final trackRepository =
+        overrides?.trackRepository ??
+        Builder(TrackRepositoryFactory()).buildWith(seed: seed);
+
+    final attributionBookRepository =
+        overrides?.attributionBookRepository ??
+        Builder(AttributionBookRepositoryFactory()).buildWith(seed: seed);
+
+    final transaction =
+        overrides?.transaction ??
+        Builder(TransactionFactory()).buildWith(seed: seed);
+
+    final logger =
+        overrides?.logger ?? Builder(LoggerFactory()).buildWith(seed: seed);
+
+    return LicenseRevocationSubscriber(
+      licenseRepository: licenseRepository,
+      trackRepository: trackRepository,
+      attributionBookRepository: attributionBookRepository,
+      transaction: transaction,
+      logger: logger,
+    );
+  }
+
+  @override
+  LicenseRevocationSubscriber duplicate(
+    LicenseRevocationSubscriber instance,
+    LicenseRevocationSubscriberOverrides? overrides,
   ) {
     throw UnimplementedError();
   }

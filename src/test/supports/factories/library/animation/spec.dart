@@ -1,10 +1,10 @@
+import 'package:another_me/domains/common/error.dart';
 import 'package:another_me/domains/common/frame_rate.dart';
 import 'package:another_me/domains/library/animation/common.dart';
 import 'package:another_me/domains/library/animation/spec.dart';
 import 'package:another_me/domains/library/asset.dart';
 
 import '../../common.dart';
-import '../../common/error.dart';
 import '../../common/frame_rate.dart';
 import '../../string.dart';
 import '../asset.dart';

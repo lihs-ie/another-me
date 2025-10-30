@@ -2,12 +2,16 @@ import 'dart:typed_data';
 
 import 'package:another_me/domains/avatar/animation.dart';
 import 'package:another_me/domains/avatar/wardrobe.dart';
+import 'package:another_me/domains/billing/billing.dart';
 import 'package:another_me/domains/common/date.dart';
 import 'package:another_me/domains/common/event.dart';
 import 'package:another_me/domains/common/identifier.dart';
+import 'package:another_me/domains/common/transaction.dart';
 import 'package:another_me/domains/common/value_object.dart';
 import 'package:another_me/domains/common/variant.dart';
+import 'package:another_me/domains/library/asset.dart';
 import 'package:another_me/domains/profile/profile.dart';
+import 'package:logger/logger.dart';
 import 'package:ulid/ulid.dart';
 
 class CharacterIdentifier extends ULIDBasedIdentifier {
@@ -341,12 +345,142 @@ class CharacterSearchCriteria implements ValueObject {
 }
 
 class DayPeriodChangedSubscriber implements EventSubscriber {
+  final CharacterRepository characterRepository;
+  final Transaction transaction;
+  final Logger logger;
+
+  DayPeriodChangedSubscriber({
+    required this.characterRepository,
+    required this.transaction,
+    required this.logger,
+  });
+
   @override
-  void subscribe(EventBroker broker) {}
+  void subscribe(EventBroker broker) {
+    broker.listen<DayPeriodChanged>(_onDayPeriodChanged(broker));
+  }
 
   void Function(DayPeriodChanged event) _onDayPeriodChanged(
     EventBroker broker,
   ) {
-    return (DayPeriodChanged event) {};
+    return (DayPeriodChanged event) async {
+      transaction.execute(() async {
+        logger.d('Day period changed to: ${event.period}');
+      });
+    };
+  }
+}
+
+class AssetCatalogUpdatedSubscriber implements EventSubscriber {
+  final CharacterRepository characterRepository;
+  final Transaction transaction;
+  final Logger logger;
+
+  AssetCatalogUpdatedSubscriber({
+    required this.characterRepository,
+    required this.transaction,
+    required this.logger,
+  });
+
+  @override
+  void subscribe(EventBroker broker) {
+    broker.listen<AssetCatalogUpdated>(_onAssetCatalogUpdated(broker));
+  }
+
+  void Function(AssetCatalogUpdated event) _onAssetCatalogUpdated(
+    EventBroker broker,
+  ) {
+    return (AssetCatalogUpdated event) async {
+      transaction.execute(() async {
+        final hasCharacterPackages = event.updatedPackages.any(
+          (package) => package.type == AssetPackageType.character,
+        );
+
+        if (!hasCharacterPackages) {
+          logger.d('No character packages in catalog update.');
+          return;
+        }
+
+        final characters = await characterRepository.all();
+
+        logger.i(
+          'AssetCatalog updated with character packages. Validating ${characters.length} characters.',
+        );
+
+        for (final character in characters) {
+          await characterRepository.persist(character);
+
+          broker.publish(
+            CharacterUpdated(
+              character: character.identifier,
+              occurredAt: DateTime.now(),
+            ),
+          );
+        }
+
+        logger.i('Character validation completed.');
+      });
+    };
+  }
+}
+
+class EntitlementChangedSubscriber implements EventSubscriber {
+  final EntitlementRepository entitlementRepository;
+  final CharacterRepository characterRepository;
+  final Transaction transaction;
+  final Logger logger;
+
+  EntitlementChangedSubscriber({
+    required this.entitlementRepository,
+    required this.characterRepository,
+    required this.transaction,
+    required this.logger,
+  });
+
+  @override
+  void subscribe(EventBroker broker) {
+    broker.listen<EntitlementUpdated>(_onEntitlementUpdated(broker));
+  }
+
+  void Function(EntitlementUpdated event) _onEntitlementUpdated(
+    EventBroker broker,
+  ) {
+    return (EntitlementUpdated event) async {
+      transaction.execute(() async {
+        final entitlement = await entitlementRepository.find(event.entitlement);
+        final characterLimit = entitlement.limits.characters;
+
+        if (characterLimit.isUnlimited) {
+          logger.d('Character limit is unlimited.');
+          return;
+        }
+
+        final activeCharacters = await characterRepository.search(
+          CharacterSearchCriteria(statuses: {CharacterStatus.active}),
+        );
+
+        final currentCount = activeCharacters.length;
+        final limit = characterLimit.value!;
+
+        if (currentCount <= limit) {
+          logger.d('Character count ($currentCount) is within limit ($limit).');
+          return;
+        }
+
+        final excessCount = currentCount - limit;
+        final charactersToDeprecate = activeCharacters.take(excessCount);
+
+        for (final character in charactersToDeprecate) {
+          character.deprecate('Character limit exceeded');
+          await characterRepository.persist(character);
+
+          broker.publishAll(character.events());
+        }
+
+        logger.i(
+          'Deprecated $excessCount characters due to entitlement limit.',
+        );
+      });
+    };
   }
 }

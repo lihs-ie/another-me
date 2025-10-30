@@ -1,9 +1,9 @@
+import 'package:another_me/domains/common/error.dart';
 import 'package:another_me/domains/library/animation/atlas.dart';
 import 'package:another_me/domains/library/animation/binding.dart';
 import 'package:another_me/domains/library/animation/timeline.dart';
 
 import '../../common.dart';
-import '../../common/error.dart';
 import '../../common/identifier.dart';
 import '../../enum.dart';
 import 'atlas.dart';

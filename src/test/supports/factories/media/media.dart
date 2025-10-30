@@ -1,16 +1,20 @@
+import 'package:another_me/domains/common/error.dart';
 import 'package:another_me/domains/common/storage.dart';
+import 'package:another_me/domains/common/transaction.dart';
 import 'package:another_me/domains/common/url.dart';
 import 'package:another_me/domains/licensing/licensing.dart';
 import 'package:another_me/domains/media/media.dart';
+import 'package:logger/logger.dart';
 
 import '../common.dart';
 import '../common/date.dart';
-import '../common/error.dart';
 import '../common/identifier.dart';
 import '../common/storage.dart';
+import '../common/transaction.dart';
 import '../common/url.dart';
 import '../enum.dart';
 import '../licensing/licensing.dart';
+import '../logger.dart';
 import '../string.dart';
 
 class TrackIdentifierFactory
@@ -1293,5 +1297,121 @@ class PlaylistExceedsEntitlementLimitFactory
       limit: limit,
       occurredAt: occurredAt,
     );
+  }
+}
+
+typedef TrackDeprecationSubscriberOverrides = ({Logger? logger});
+
+class TrackDeprecationSubscriberFactory
+    extends
+        Factory<
+          TrackDeprecationSubscriber,
+          TrackDeprecationSubscriberOverrides
+        > {
+  @override
+  TrackDeprecationSubscriber create({
+    TrackDeprecationSubscriberOverrides? overrides,
+    required int seed,
+  }) {
+    final logger =
+        overrides?.logger ?? Builder(LoggerFactory()).buildWith(seed: seed);
+
+    return TrackDeprecationSubscriber(logger: logger);
+  }
+
+  @override
+  TrackDeprecationSubscriber duplicate(
+    TrackDeprecationSubscriber instance,
+    TrackDeprecationSubscriberOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+typedef CatalogDownloadCompletedSubscriberOverrides = ({
+  TrackRepository? trackRepository,
+  Transaction? transaction,
+  Logger? logger,
+});
+
+class CatalogDownloadCompletedSubscriberFactory
+    extends
+        Factory<
+          CatalogDownloadCompletedSubscriber,
+          CatalogDownloadCompletedSubscriberOverrides
+        > {
+  @override
+  CatalogDownloadCompletedSubscriber create({
+    CatalogDownloadCompletedSubscriberOverrides? overrides,
+    required int seed,
+  }) {
+    final trackRepository =
+        overrides?.trackRepository ??
+        Builder(TrackRepositoryFactory()).buildWith(seed: seed);
+
+    final transaction =
+        overrides?.transaction ??
+        Builder(TransactionFactory()).buildWith(seed: seed);
+
+    final logger =
+        overrides?.logger ?? Builder(LoggerFactory()).buildWith(seed: seed);
+
+    return CatalogDownloadCompletedSubscriber(
+      trackRepository: trackRepository,
+      transaction: transaction,
+      logger: logger,
+    );
+  }
+
+  @override
+  CatalogDownloadCompletedSubscriber duplicate(
+    CatalogDownloadCompletedSubscriber instance,
+    CatalogDownloadCompletedSubscriberOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+typedef LicenseRecordSyncSubscriberOverrides = ({
+  TrackRepository? trackRepository,
+  Transaction? transaction,
+  Logger? logger,
+});
+
+class LicenseRecordSyncSubscriberFactory
+    extends
+        Factory<
+          LicenseRecordSyncSubscriber,
+          LicenseRecordSyncSubscriberOverrides
+        > {
+  @override
+  LicenseRecordSyncSubscriber create({
+    LicenseRecordSyncSubscriberOverrides? overrides,
+    required int seed,
+  }) {
+    final trackRepository =
+        overrides?.trackRepository ??
+        Builder(TrackRepositoryFactory()).buildWith(seed: seed);
+
+    final transaction =
+        overrides?.transaction ??
+        Builder(TransactionFactory()).buildWith(seed: seed);
+
+    final logger =
+        overrides?.logger ?? Builder(LoggerFactory()).buildWith(seed: seed);
+
+    return LicenseRecordSyncSubscriber(
+      trackRepository: trackRepository,
+      transaction: transaction,
+      logger: logger,
+    );
+  }
+
+  @override
+  LicenseRecordSyncSubscriber duplicate(
+    LicenseRecordSyncSubscriber instance,
+    LicenseRecordSyncSubscriberOverrides? overrides,
+  ) {
+    throw UnimplementedError();
   }
 }

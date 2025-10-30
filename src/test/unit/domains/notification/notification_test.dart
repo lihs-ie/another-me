@@ -1,12 +1,11 @@
+import 'package:another_me/domains/common/error.dart';
 import 'package:another_me/domains/common/variant.dart';
 import 'package:another_me/domains/notification/notification.dart';
-import 'package:another_me/domains/profile/profile.dart';
 import 'package:flutter/material.dart' hide Builder;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ulid/ulid.dart';
 
 import '../../../supports/factories/common.dart';
-import '../../../supports/factories/common/error.dart';
 import '../../../supports/factories/notification/notification.dart';
 import '../../../supports/factories/profile/profile.dart';
 import '../common/identifier.dart';
@@ -493,7 +492,10 @@ void main() {
 
           final events = rule.events();
 
-          expect(events.any((e) => e is NotificationSuppressed), isTrue);
+          expect(
+            events.any((event) => event is NotificationSuppressed),
+            isTrue,
+          );
         });
 
         test('returns suppressed during quiet hours.', () {
@@ -621,7 +623,7 @@ void main() {
 
           final events = rule.events();
 
-          expect(events.any((e) => e is NotificationRequested), isTrue);
+          expect(events.any((event) => event is NotificationRequested), isTrue);
         });
       });
 

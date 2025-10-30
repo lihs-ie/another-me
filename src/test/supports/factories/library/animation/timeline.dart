@@ -1,8 +1,8 @@
+import 'package:another_me/domains/common/error.dart';
 import 'package:another_me/domains/common/frame_rate.dart';
 import 'package:another_me/domains/library/animation/timeline.dart';
 
 import '../../common.dart';
-import '../../common/error.dart';
 import '../../common/frame_rate.dart';
 import '../../common/identifier.dart';
 import '../../enum.dart';

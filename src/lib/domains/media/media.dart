@@ -3,10 +3,13 @@ import 'dart:typed_data';
 import 'package:another_me/domains/common/event.dart';
 import 'package:another_me/domains/common/identifier.dart';
 import 'package:another_me/domains/common/storage.dart';
+import 'package:another_me/domains/common/transaction.dart';
 import 'package:another_me/domains/common/url.dart';
 import 'package:another_me/domains/common/value_object.dart';
 import 'package:another_me/domains/common/variant.dart';
+import 'package:another_me/domains/import/import.dart';
 import 'package:another_me/domains/licensing/licensing.dart';
+import 'package:logger/logger.dart';
 import 'package:ulid/ulid.dart';
 
 // ============================================================================
@@ -785,4 +788,86 @@ abstract interface class PlaylistRepository {
   Future<List<Playlist>> all();
   Future<void> persist(Playlist playlist);
   Future<void> terminate(PlaylistIdentifier identifier);
+}
+
+class TrackDeprecationSubscriber implements EventSubscriber {
+  final Logger logger;
+
+  TrackDeprecationSubscriber({required this.logger});
+
+  @override
+  void subscribe(EventBroker broker) {
+    broker.listen<TrackDeprecated>(_onTrackDeprecated);
+  }
+
+  void _onTrackDeprecated(TrackDeprecated event) {
+    logger.i(
+      'Track ${event.identifier.value} has been deprecated. Playlists containing this track will retain it for user review.',
+    );
+  }
+}
+
+class CatalogDownloadCompletedSubscriber implements EventSubscriber {
+  final TrackRepository trackRepository;
+  final Transaction transaction;
+  final Logger logger;
+
+  CatalogDownloadCompletedSubscriber({
+    required this.trackRepository,
+    required this.transaction,
+    required this.logger,
+  });
+
+  @override
+  void subscribe(EventBroker broker) {
+    broker.listen<CatalogDownloadCompleted>(
+      _onCatalogDownloadCompleted(broker),
+    );
+  }
+
+  void Function(CatalogDownloadCompleted event) _onCatalogDownloadCompleted(
+    EventBroker broker,
+  ) {
+    return (CatalogDownloadCompleted event) async {
+      transaction.execute(() async {
+        logger.i('Catalog download completed: ${event.job.value}');
+      });
+    };
+  }
+}
+
+class LicenseRecordSyncSubscriber implements EventSubscriber {
+  final TrackRepository trackRepository;
+  final Transaction transaction;
+  final Logger logger;
+
+  LicenseRecordSyncSubscriber({
+    required this.trackRepository,
+    required this.transaction,
+    required this.logger,
+  });
+
+  @override
+  void subscribe(EventBroker broker) {
+    broker.listen<LicenseRecordRevoked>(_onLicenseRecordRevoked(broker));
+  }
+
+  void Function(LicenseRecordRevoked event) _onLicenseRecordRevoked(
+    EventBroker broker,
+  ) {
+    return (LicenseRecordRevoked event) async {
+      transaction.execute(() async {
+        final track = await trackRepository.find(event.track);
+
+        track.markDeprecated('License revoked');
+        await trackRepository.persist(track);
+
+        broker.publishAll(track.events());
+
+        logger.i(
+          'Track ${event.track.value} deprecated due to license revocation.',
+        );
+      });
+    };
+  }
 }

@@ -582,7 +582,9 @@ class Parser {
 
   int _readNumber() {
     final start = index;
-    while (!eof && isDigit(string[index])) index++;
+    while (!eof && isDigit(string[index])) {
+      index++;
+    }
 
     if (start == index) {
       throw FormatException('Number expected at $index');

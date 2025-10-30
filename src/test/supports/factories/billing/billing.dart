@@ -1,9 +1,13 @@
 import 'package:another_me/domains/billing/billing.dart';
+import 'package:another_me/domains/common/error.dart';
+import 'package:another_me/domains/common/transaction.dart';
+import 'package:logger/logger.dart';
 
 import '../common.dart';
-import '../common/error.dart';
 import '../common/identifier.dart';
+import '../common/transaction.dart';
 import '../enum.dart';
+import '../logger.dart';
 import '../string.dart';
 
 class PlanIdentifierFactory extends ULIDBasedIdentifierFactory<PlanIdentifier> {
@@ -744,6 +748,11 @@ class _EntitlementRepository implements EntitlementRepository {
   }
 
   @override
+  Future<List<Entitlement>> all() {
+    return Future.value(_instances.values.toList());
+  }
+
+  @override
   Future<void> persist(Entitlement entitlement) {
     _instances[entitlement.identifier] = entitlement;
 
@@ -778,6 +787,189 @@ class EntitlementRepositoryFactory
   EntitlementRepository duplicate(
     EntitlementRepository instance,
     EntitlementRepositoryOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+typedef SubscriptionSyncSubscriberOverrides = ({
+  SubscriptionRepository? subscriptionRepository,
+  PlanRepository? planRepository,
+  EntitlementRepository? entitlementRepository,
+  Transaction? transaction,
+  Logger? logger,
+});
+
+class SubscriptionSyncSubscriberFactory
+    extends
+        Factory<
+          SubscriptionSyncSubscriber,
+          SubscriptionSyncSubscriberOverrides
+        > {
+  @override
+  SubscriptionSyncSubscriber create({
+    SubscriptionSyncSubscriberOverrides? overrides,
+    required int seed,
+  }) {
+    final subscriptionRepository =
+        overrides?.subscriptionRepository ??
+        Builder(SubscriptionRepositoryFactory()).buildWith(seed: seed);
+
+    final planRepository =
+        overrides?.planRepository ??
+        Builder(PlanRepositoryFactory()).buildWith(seed: seed);
+
+    final entitlementRepository =
+        overrides?.entitlementRepository ??
+        Builder(EntitlementRepositoryFactory()).buildWith(seed: seed);
+
+    final transaction =
+        overrides?.transaction ??
+        Builder(TransactionFactory()).buildWith(seed: seed);
+
+    final logger =
+        overrides?.logger ?? Builder(LoggerFactory()).buildWith(seed: seed);
+
+    return SubscriptionSyncSubscriber(
+      subscriptionRepository: subscriptionRepository,
+      planRepository: planRepository,
+      entitlementRepository: entitlementRepository,
+      transaction: transaction,
+      logger: logger,
+    );
+  }
+
+  @override
+  SubscriptionSyncSubscriber duplicate(
+    SubscriptionSyncSubscriber instance,
+    SubscriptionSyncSubscriberOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+typedef PlanManagementSubscriberOverrides = ({
+  PlanRepository? planRepository,
+  EntitlementRepository? entitlementRepository,
+  Transaction? transaction,
+  Logger? logger,
+});
+
+class PlanManagementSubscriberFactory
+    extends
+        Factory<PlanManagementSubscriber, PlanManagementSubscriberOverrides> {
+  @override
+  PlanManagementSubscriber create({
+    PlanManagementSubscriberOverrides? overrides,
+    required int seed,
+  }) {
+    final planRepository =
+        overrides?.planRepository ??
+        Builder(PlanRepositoryFactory()).buildWith(seed: seed);
+
+    final entitlementRepository =
+        overrides?.entitlementRepository ??
+        Builder(EntitlementRepositoryFactory()).buildWith(seed: seed);
+
+    final transaction =
+        overrides?.transaction ??
+        Builder(TransactionFactory()).buildWith(seed: seed);
+
+    final logger =
+        overrides?.logger ?? Builder(LoggerFactory()).buildWith(seed: seed);
+
+    return PlanManagementSubscriber(
+      planRepository: planRepository,
+      entitlementRepository: entitlementRepository,
+      transaction: transaction,
+      logger: logger,
+    );
+  }
+
+  @override
+  PlanManagementSubscriber duplicate(
+    PlanManagementSubscriber instance,
+    PlanManagementSubscriberOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+typedef MediaUsageSubscriberOverrides = ({
+  EntitlementRepository? entitlementRepository,
+  Transaction? transaction,
+  Logger? logger,
+});
+
+class MediaUsageSubscriberFactory
+    extends Factory<MediaUsageSubscriber, MediaUsageSubscriberOverrides> {
+  @override
+  MediaUsageSubscriber create({
+    MediaUsageSubscriberOverrides? overrides,
+    required int seed,
+  }) {
+    final entitlementRepository =
+        overrides?.entitlementRepository ??
+        Builder(EntitlementRepositoryFactory()).buildWith(seed: seed);
+
+    final transaction =
+        overrides?.transaction ??
+        Builder(TransactionFactory()).buildWith(seed: seed);
+
+    final logger =
+        overrides?.logger ?? Builder(LoggerFactory()).buildWith(seed: seed);
+
+    return MediaUsageSubscriber(
+      entitlementRepository: entitlementRepository,
+      transaction: transaction,
+      logger: logger,
+    );
+  }
+
+  @override
+  MediaUsageSubscriber duplicate(
+    MediaUsageSubscriber instance,
+    MediaUsageSubscriberOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+typedef AvatarUsageSubscriberOverrides = ({
+  EntitlementRepository? entitlementRepository,
+  Transaction? transaction,
+  Logger? logger,
+});
+
+class AvatarUsageSubscriberFactory
+    extends Factory<AvatarUsageSubscriber, AvatarUsageSubscriberOverrides> {
+  @override
+  AvatarUsageSubscriber create({
+    AvatarUsageSubscriberOverrides? overrides,
+    required int seed,
+  }) {
+    final entitlementRepository =
+        overrides?.entitlementRepository ??
+        Builder(EntitlementRepositoryFactory()).buildWith(seed: seed);
+
+    final transaction =
+        overrides?.transaction ??
+        Builder(TransactionFactory()).buildWith(seed: seed);
+
+    final logger =
+        overrides?.logger ?? Builder(LoggerFactory()).buildWith(seed: seed);
+
+    return AvatarUsageSubscriber(
+      entitlementRepository: entitlementRepository,
+      transaction: transaction,
+      logger: logger,
+    );
+  }
+
+  @override
+  AvatarUsageSubscriber duplicate(
+    AvatarUsageSubscriber instance,
+    AvatarUsageSubscriberOverrides? overrides,
   ) {
     throw UnimplementedError();
   }

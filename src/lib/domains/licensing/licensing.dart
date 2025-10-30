@@ -8,6 +8,7 @@ import 'package:another_me/domains/common/url.dart';
 import 'package:another_me/domains/common/value_object.dart';
 import 'package:another_me/domains/common/variant.dart';
 import 'package:another_me/domains/media/media.dart';
+import 'package:logger/logger.dart';
 import 'package:ulid/ulid.dart';
 
 class LicenseIdentifier extends ULIDBasedIdentifier {
@@ -958,6 +959,53 @@ class AttributionPublishSubscriber implements EventSubscriber {
         await _attributionBookRepository.persist(attributionBook);
 
         broker.publishAll(attributionBook.events());
+      });
+    };
+  }
+}
+
+class LicenseRevocationSubscriber implements EventSubscriber {
+  final LicenseRecordRepository licenseRepository;
+  final TrackRepository trackRepository;
+  final AttributionBookRepository attributionBookRepository;
+  final Transaction transaction;
+  final Logger logger;
+
+  LicenseRevocationSubscriber({
+    required this.licenseRepository,
+    required this.trackRepository,
+    required this.attributionBookRepository,
+    required this.transaction,
+    required this.logger,
+  });
+
+  @override
+  void subscribe(EventBroker broker) {
+    broker.listen<LicenseRecordRevoked>(_onLicenseRecordRevoked(broker));
+  }
+
+  void Function(LicenseRecordRevoked event) _onLicenseRecordRevoked(
+    EventBroker broker,
+  ) {
+    return (LicenseRecordRevoked event) async {
+      transaction.execute(() async {
+        final track = await trackRepository.find(event.track);
+
+        track.markDeprecated('License revoked');
+        await trackRepository.persist(track);
+
+        broker.publishAll(track.events());
+
+        final attributionBook = await attributionBookRepository.current();
+
+        attributionBook.invalidateEntriesByLicense(event.identifier);
+        await attributionBookRepository.persist(attributionBook);
+
+        broker.publishAll(attributionBook.events());
+
+        logger.i(
+          'License ${event.identifier.value} revoked. Track ${event.track.value} deprecated and attribution entries invalidated.',
+        );
       });
     };
   }

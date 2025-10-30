@@ -1,3 +1,4 @@
+import 'package:another_me/domains/common/error.dart';
 import 'package:another_me/domains/common/number.dart';
 import 'package:another_me/domains/common/range.dart';
 import 'package:another_me/domains/common/theme.dart';
@@ -8,7 +9,6 @@ import 'package:another_me/domains/scene/scene.dart';
 import 'package:ulid/ulid.dart';
 
 import '../common.dart';
-import '../common/error.dart';
 import '../common/identifier.dart';
 import '../common/number.dart';
 import '../common/theme.dart';

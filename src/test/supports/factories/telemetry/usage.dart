@@ -1,3 +1,4 @@
+import 'package:another_me/domains/common/error.dart';
 import 'package:another_me/domains/common/range.dart';
 import 'package:another_me/domains/common/transaction.dart';
 import 'package:another_me/domains/profile/profile.dart';
@@ -6,7 +7,6 @@ import 'package:ulid/ulid.dart';
 
 import '../common.dart';
 import '../common/date.dart';
-import '../common/error.dart';
 import '../common/identifier.dart';
 import '../common/transaction.dart';
 import '../enum.dart';

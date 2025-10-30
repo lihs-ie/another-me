@@ -1,13 +1,11 @@
 import 'package:another_me/domains/common/storage.dart';
 import 'package:another_me/domains/common/url.dart';
 import 'package:another_me/domains/import/import.dart';
-import 'package:another_me/domains/library/asset.dart';
 
 import '../common.dart';
 import '../common/identifier.dart';
 import '../common/storage.dart';
 import '../common/url.dart';
-import '../library/asset.dart';
 import '../string.dart';
 
 class CatalogTrackIdentifierFactory

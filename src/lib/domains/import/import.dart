@@ -8,7 +8,6 @@ import 'package:another_me/domains/common/storage.dart';
 import 'package:another_me/domains/common/url.dart';
 import 'package:another_me/domains/common/value_object.dart';
 import 'package:another_me/domains/common/variant.dart';
-import 'package:another_me/domains/library/asset.dart';
 import 'package:ulid/ulid.dart';
 
 class CatalogTrackIdentifier extends ULIDBasedIdentifier {
@@ -320,14 +319,14 @@ class FailureReason implements ValueObject {
 
   static const int maxMessageLength = 500;
 
-  FailureReason({required this.code, String? message}) : message = message {
+  FailureReason({required this.code, this.message}) {
     if (message != null) {
-      if (message.isEmpty) {
+      if (message!.isEmpty) {
         throw InvariantViolationError('message cannot be an empty string.');
       }
 
       Invariant.range(
-        value: message.length,
+        value: message!.length,
         name: 'message',
         min: 1,
         max: maxMessageLength,

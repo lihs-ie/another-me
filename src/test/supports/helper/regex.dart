@@ -332,12 +332,14 @@ class Parser {
     ]);
 
     // excluded に含まれない文字のみを返す
-    return all.where((c) => !excluded.contains(c)).toList();
+    return all.where((character) => !excluded.contains(character)).toList();
   }
 
   int _readNumber() {
     final start = index;
-    while (!eof && isDigit(string[index])) index++;
+    while (!eof && isDigit(string[index])) {
+      index++;
+    }
 
     if (start == index) {
       throw FormatException('Number expected at $index');
@@ -349,7 +351,7 @@ class Parser {
   static bool isDigit(String c) =>
       c.codeUnitAt(0) ^ 0x30 <= 9 && c.codeUnitAt(0) >= 0x30;
 
-  bool _isMeta(String c) => '()[]{}|*+?.'.contains(c);
+  bool _isMeta(String character) => '()[]{}|*+?.'.contains(character);
   List<String> _range(String a, String b) {
     final sa = a.codeUnitAt(0), sb = b.codeUnitAt(0);
     final lo = min(sa, sb), hi = max(sa, sb);
