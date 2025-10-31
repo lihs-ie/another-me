@@ -285,3 +285,54 @@ class PerformanceMonitorRepositoryFactory
     throw UnimplementedError();
   }
 }
+
+class _PerformanceMetricsCollector implements PerformanceMetricsCollector {
+  final PerformanceSnapshot Function()? _onCollect;
+
+  _PerformanceMetricsCollector({PerformanceSnapshot Function()? onCollect})
+    : _onCollect = onCollect;
+
+  @override
+  Future<PerformanceSnapshot> collect() {
+    if (_onCollect != null) {
+      return Future.value(_onCollect());
+    }
+
+    return Future.value(
+      PerformanceSnapshot(
+        averageCPU: 10.0,
+        averageMemory: 200.0,
+        characterFPS: FramesPerSecond(value: 60),
+        backgroundFPS: FramesPerSecond(value: 30),
+        capturedAt: DateTime.now(),
+      ),
+    );
+  }
+}
+
+typedef PerformanceMetricsCollectorOverrides = ({
+  PerformanceSnapshot Function()? onCollect,
+});
+
+class PerformanceMetricsCollectorFactory
+    extends
+        Factory<
+          PerformanceMetricsCollector,
+          PerformanceMetricsCollectorOverrides
+        > {
+  @override
+  PerformanceMetricsCollector create({
+    PerformanceMetricsCollectorOverrides? overrides,
+    required int seed,
+  }) {
+    return _PerformanceMetricsCollector(onCollect: overrides?.onCollect);
+  }
+
+  @override
+  PerformanceMetricsCollector duplicate(
+    PerformanceMetricsCollector instance,
+    PerformanceMetricsCollectorOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}

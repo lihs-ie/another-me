@@ -175,6 +175,7 @@ void main() {
         LicenseIdentifier license,
         String catalogTrackID,
         URL downloadURL,
+        bool allowOffline,
       }),
       ({
         TrackIdentifier identifier,
@@ -189,6 +190,7 @@ void main() {
         LicenseIdentifier license,
         String catalogTrackID,
         URL downloadURL,
+        bool allowOffline,
       })
     >(
       constructor: (props) => TrackRegistrationRequest(
@@ -204,6 +206,7 @@ void main() {
         license: props.license,
         catalogTrackID: props.catalogTrackID,
         downloadURL: props.downloadURL,
+        allowOffline: props.allowOffline,
       ),
       generator: () => (
         identifier: Builder(TrackIdentifierFactory()).build(),
@@ -225,6 +228,7 @@ void main() {
             value: 'https://example.com/track',
           ),
         ),
+        allowOffline: true,
       ),
       variations: (props) => [
         (
@@ -240,6 +244,7 @@ void main() {
           license: props.license,
           catalogTrackID: props.catalogTrackID,
           downloadURL: props.downloadURL,
+          allowOffline: props.allowOffline,
         ),
         (
           identifier: props.identifier,
@@ -254,6 +259,7 @@ void main() {
           license: props.license,
           catalogTrackID: props.catalogTrackID,
           downloadURL: props.downloadURL,
+          allowOffline: props.allowOffline,
         ),
         (
           identifier: props.identifier,
@@ -268,6 +274,7 @@ void main() {
           license: props.license,
           catalogTrackID: props.catalogTrackID,
           downloadURL: props.downloadURL,
+          allowOffline: props.allowOffline,
         ),
       ],
       invalids: (props) => [
@@ -284,6 +291,7 @@ void main() {
           license: props.license,
           catalogTrackID: props.catalogTrackID,
           downloadURL: props.downloadURL,
+          allowOffline: props.allowOffline,
         ),
         (
           identifier: props.identifier,
@@ -298,6 +306,7 @@ void main() {
           license: props.license,
           catalogTrackID: props.catalogTrackID,
           downloadURL: props.downloadURL,
+          allowOffline: props.allowOffline,
         ),
       ],
     );
@@ -590,6 +599,19 @@ void main() {
         final events = playlist.events();
         expect(events.length, equals(1));
         expect(events.first, isA<PlaylistEntryRemoved>());
+      });
+
+      test('can be deleted.', () {
+        final playlist = Builder(PlaylistFactory()).build();
+        playlist.clear();
+
+        playlist.delete();
+
+        final events = playlist.events();
+        expect(events.length, equals(1));
+        expect(events.first, isA<PlaylistDeleted>());
+        final deletedEvent = events.first as PlaylistDeleted;
+        expect(deletedEvent.identifier, equals(playlist.identifier));
       });
     });
   });

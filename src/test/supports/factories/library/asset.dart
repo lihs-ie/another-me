@@ -1,4 +1,6 @@
+import 'package:another_me/domains/common/audio.dart';
 import 'package:another_me/domains/common/error.dart';
+import 'package:another_me/domains/common/range.dart';
 import 'package:another_me/domains/common/storage.dart';
 import 'package:another_me/domains/common/url.dart';
 import 'package:another_me/domains/import/import.dart';
@@ -63,6 +65,11 @@ class FileResourceFactory
 
 typedef TrackCatalogMetadataOverrides = ({
   CatalogTrackIdentifier? track,
+  String? title,
+  String? artist,
+  int? durationMilliseconds,
+  AudioFormat? format,
+  Range<num>? loopPoint,
   SignedURL? downloadURL,
   Checksum? checksum,
   CatalogLicenseMetadata? licenseMetadata,
@@ -79,6 +86,42 @@ class TrackCatalogMetadataFactory
         overrides?.track ??
         Builder(CatalogTrackIdentifierFactory()).buildWith(seed: seed);
 
+    final title =
+        overrides?.title ??
+        StringFactory.create(
+          seed: seed,
+          min: 1,
+          max: TrackCatalogMetadata.maxTitleLength,
+        );
+
+    final artist =
+        overrides?.artist ??
+        StringFactory.create(
+          seed: seed,
+          min: 1,
+          max: TrackCatalogMetadata.maxArtistLength,
+        );
+
+    final durationMilliseconds =
+        overrides?.durationMilliseconds ??
+        ((seed %
+                (TrackCatalogMetadata.maxDurationMilliseconds -
+                    TrackCatalogMetadata.minDurationMilliseconds)) +
+            TrackCatalogMetadata.minDurationMilliseconds);
+
+    final formats = AudioFormat.values;
+    final format = overrides?.format ?? formats[seed % formats.length];
+
+    final loopPoint =
+        overrides?.loopPoint ??
+        Range<num>(
+          start: (seed % (durationMilliseconds ~/ 2)).toDouble(),
+          end:
+              ((seed % (durationMilliseconds ~/ 2)) +
+                      (durationMilliseconds ~/ 2))
+                  .toDouble(),
+        );
+
     final downloadURL =
         overrides?.downloadURL ??
         Builder(SignedURLFactory()).buildWith(seed: seed);
@@ -92,6 +135,11 @@ class TrackCatalogMetadataFactory
 
     return TrackCatalogMetadata(
       track: track,
+      title: title,
+      artist: artist,
+      durationMilliseconds: durationMilliseconds,
+      format: format,
+      loopPoint: loopPoint,
       downloadURL: downloadURL,
       audioChecksum: checksum,
       licenseMetadata: licenseMetadata,
@@ -109,6 +157,17 @@ class TrackCatalogMetadataFactory
           CatalogTrackIdentifierFactory(),
         ).duplicate(instance: instance.track);
 
+    final title = overrides?.title ?? instance.title;
+
+    final artist = overrides?.artist ?? instance.artist;
+
+    final durationMilliseconds =
+        overrides?.durationMilliseconds ?? instance.durationMilliseconds;
+
+    final format = overrides?.format ?? instance.format;
+
+    final loopPoint = overrides?.loopPoint ?? instance.loopPoint;
+
     final downloadURL =
         overrides?.downloadURL ??
         Builder(SignedURLFactory()).duplicate(instance: instance.downloadURL);
@@ -125,6 +184,11 @@ class TrackCatalogMetadataFactory
 
     return TrackCatalogMetadata(
       track: track,
+      title: title,
+      artist: artist,
+      durationMilliseconds: durationMilliseconds,
+      format: format,
+      loopPoint: loopPoint,
       downloadURL: downloadURL,
       audioChecksum: checksum,
       licenseMetadata: licenseMetadata,
@@ -182,7 +246,7 @@ class AssetPackageFactory extends Factory<AssetPackage, AssetPackageOverrides> {
 
     TrackCatalogMetadata? trackMetadata = overrides?.trackMetadata;
 
-    if (type == AssetPackageType.track) {
+    if (type == AssetPackageType.track && trackMetadata == null) {
       trackMetadata = Builder(
         TrackCatalogMetadataFactory(),
       ).buildWith(seed: seed);

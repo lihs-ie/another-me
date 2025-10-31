@@ -1,6 +1,7 @@
 import 'package:another_me/domains/billing/billing.dart';
 import 'package:another_me/domains/common/error.dart';
 import 'package:another_me/domains/common/transaction.dart';
+import 'package:another_me/domains/profile/profile.dart';
 import 'package:logger/logger.dart';
 
 import '../common.dart';
@@ -8,6 +9,7 @@ import '../common/identifier.dart';
 import '../common/transaction.dart';
 import '../enum.dart';
 import '../logger.dart';
+import '../profile/profile.dart';
 import '../string.dart';
 
 class PlanIdentifierFactory extends ULIDBasedIdentifierFactory<PlanIdentifier> {
@@ -463,6 +465,7 @@ class OverLimitTypeFactory extends EnumFactory<OverLimitType> {
 
 typedef EntitlementOverrides = ({
   EntitlementIdentifier? identifier,
+  ProfileIdentifier? profile,
   PlanIdentifier? plan,
   SubscriptionIdentifier? subscription,
   int? version,
@@ -478,6 +481,10 @@ class EntitlementFactory extends Factory<Entitlement, EntitlementOverrides> {
     final identifier =
         overrides?.identifier ??
         Builder(EntitlementIdentifierFactory()).buildWith(seed: seed);
+
+    final profile =
+        overrides?.profile ??
+        Builder(ProfileIdentifierFactory()).buildWith(seed: seed);
 
     final plan =
         overrides?.plan ??
@@ -507,6 +514,7 @@ class EntitlementFactory extends Factory<Entitlement, EntitlementOverrides> {
 
     return Entitlement(
       identifier: identifier,
+      profile: profile,
       plan: plan,
       subscription: subscription,
       version: version,
@@ -524,6 +532,12 @@ class EntitlementFactory extends Factory<Entitlement, EntitlementOverrides> {
         Builder(
           EntitlementIdentifierFactory(),
         ).duplicate(instance: instance.identifier, overrides: null);
+
+    final profile =
+        overrides?.profile ??
+        Builder(
+          ProfileIdentifierFactory(),
+        ).duplicate(instance: instance.profile, overrides: null);
 
     final plan =
         overrides?.plan ??
@@ -561,6 +575,7 @@ class EntitlementFactory extends Factory<Entitlement, EntitlementOverrides> {
 
     return Entitlement(
       identifier: identifier,
+      profile: profile,
       plan: plan,
       subscription: subscription,
       version: version,
@@ -600,6 +615,16 @@ class _PlanRepository implements PlanRepository {
     }
 
     return Future.value(instance);
+  }
+
+  @override
+  Future<Plan> findDefault() {
+    final defaultPlan = _instances.values.firstWhere(
+      (plan) => plan.price.amount == 0.0,
+      orElse: () => throw AggregateNotFoundError('Default plan not found.'),
+    );
+
+    return Future.value(defaultPlan);
   }
 
   @override
@@ -743,6 +768,18 @@ class _EntitlementRepository implements EntitlementRepository {
         'Entitlement with identifier ${identifier.value} not found.',
       );
     }
+
+    return Future.value(instance);
+  }
+
+  @override
+  Future<Entitlement> findByProfile(ProfileIdentifier profile) {
+    final instance = _instances.values.firstWhere(
+      (entitlement) => entitlement.profile == profile,
+      orElse: () => throw AggregateNotFoundError(
+        'Entitlement for profile ${profile.value} not found.',
+      ),
+    );
 
     return Future.value(instance);
   }
@@ -970,6 +1007,84 @@ class AvatarUsageSubscriberFactory
   AvatarUsageSubscriber duplicate(
     AvatarUsageSubscriber instance,
     AvatarUsageSubscriberOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+typedef EntitlementServiceOverrides = ({
+  Future<bool> Function(int)? canAddTrack,
+  Future<bool> Function(int)? canUseCharacter,
+  int? trackLimit,
+  int? characterLimit,
+});
+
+class _EntitlementService implements EntitlementService {
+  final Future<bool> Function(int) _canAddTrack;
+  final Future<bool> Function(int) _canUseCharacter;
+  final int _trackLimit;
+  final int _characterLimit;
+
+  _EntitlementService({
+    required Future<bool> Function(int) canAddTrack,
+    required Future<bool> Function(int) canUseCharacter,
+    required int trackLimit,
+    required int characterLimit,
+  }) : _canAddTrack = canAddTrack,
+       _canUseCharacter = canUseCharacter,
+       _trackLimit = trackLimit,
+       _characterLimit = characterLimit;
+
+  @override
+  Future<bool> canAddTrack(int currentTrackCount) {
+    return _canAddTrack(currentTrackCount);
+  }
+
+  @override
+  Future<bool> canUseCharacter(int currentCharacterCount) {
+    return _canUseCharacter(currentCharacterCount);
+  }
+
+  @override
+  Future<int> getTrackLimit() {
+    return Future.value(_trackLimit);
+  }
+
+  @override
+  Future<int> getCharacterLimit() {
+    return Future.value(_characterLimit);
+  }
+}
+
+class EntitlementServiceFactory
+    extends Factory<EntitlementService, EntitlementServiceOverrides> {
+  @override
+  EntitlementService create({
+    EntitlementServiceOverrides? overrides,
+    required int seed,
+  }) {
+    final canAddTrack =
+        overrides?.canAddTrack ?? (int count) => Future.value(count < 100);
+
+    final canUseCharacter =
+        overrides?.canUseCharacter ?? (int count) => Future.value(count < 10);
+
+    final trackLimit = overrides?.trackLimit ?? 100;
+
+    final characterLimit = overrides?.characterLimit ?? 10;
+
+    return _EntitlementService(
+      canAddTrack: canAddTrack,
+      canUseCharacter: canUseCharacter,
+      trackLimit: trackLimit,
+      characterLimit: characterLimit,
+    );
+  }
+
+  @override
+  EntitlementService duplicate(
+    EntitlementService instance,
+    EntitlementServiceOverrides? overrides,
   ) {
     throw UnimplementedError();
   }

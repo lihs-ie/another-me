@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
+import 'package:another_me/domains/common/audio.dart';
 import 'package:another_me/domains/common/event.dart';
 import 'package:another_me/domains/common/identifier.dart';
+import 'package:another_me/domains/common/range.dart';
 import 'package:another_me/domains/common/storage.dart';
 import 'package:another_me/domains/common/url.dart';
 import 'package:another_me/domains/common/value_object.dart';
@@ -116,17 +118,60 @@ class FileResource implements ValueObject {
 }
 
 class TrackCatalogMetadata implements ValueObject {
+  static const int maxTitleLength = 100;
+  static const int maxArtistLength = 100;
+  static const int minDurationMilliseconds = 1000;
+  static const int maxDurationMilliseconds = 3600000;
+
   final CatalogTrackIdentifier track;
+  final String title;
+  final String artist;
+  final int durationMilliseconds;
+  final AudioFormat format;
+  final Range<num> loopPoint;
   final SignedURL downloadURL;
   final Checksum audioChecksum;
   final CatalogLicenseMetadata licenseMetadata;
 
   TrackCatalogMetadata({
     required this.track,
+    required this.title,
+    required this.artist,
+    required this.durationMilliseconds,
+    required this.format,
+    required this.loopPoint,
     required this.downloadURL,
     required this.audioChecksum,
     required this.licenseMetadata,
-  });
+  }) {
+    Invariant.length(value: title, name: 'title', min: 1, max: maxTitleLength);
+
+    Invariant.length(
+      value: artist,
+      name: 'artist',
+      min: 1,
+      max: maxArtistLength,
+    );
+
+    Invariant.range(
+      value: durationMilliseconds,
+      name: 'durationMilliseconds',
+      min: minDurationMilliseconds,
+      max: maxDurationMilliseconds,
+    );
+
+    if (loopPoint.start! >= loopPoint.end!) {
+      throw InvariantViolationError(
+        'loopPoint.start must be less than loopPoint.end',
+      );
+    }
+
+    if (loopPoint.end! > durationMilliseconds) {
+      throw InvariantViolationError(
+        'loopPoint.end must be less than or equal to durationMilliseconds',
+      );
+    }
+  }
 
   @override
   bool operator ==(Object other) {
@@ -139,6 +184,26 @@ class TrackCatalogMetadata implements ValueObject {
     }
 
     if (track != other.track) {
+      return false;
+    }
+
+    if (title != other.title) {
+      return false;
+    }
+
+    if (artist != other.artist) {
+      return false;
+    }
+
+    if (durationMilliseconds != other.durationMilliseconds) {
+      return false;
+    }
+
+    if (format != other.format) {
+      return false;
+    }
+
+    if (loopPoint != other.loopPoint) {
       return false;
     }
 
@@ -158,8 +223,17 @@ class TrackCatalogMetadata implements ValueObject {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(track, downloadURL, audioChecksum, licenseMetadata);
+  int get hashCode => Object.hash(
+    track,
+    title,
+    artist,
+    durationMilliseconds,
+    format,
+    loopPoint,
+    downloadURL,
+    audioChecksum,
+    licenseMetadata,
+  );
 }
 
 enum CatalogStatus { draft, published, deprecated }
@@ -428,6 +502,28 @@ class AssetCatalog with Publishable<AssetCatalogEvent> {
 
     publish(AssetCatalogDeprecated(catalog: identifier, reason: reason));
   }
+
+  TrackCatalogMetadata findTrack(CatalogTrackIdentifier identifier) {
+    for (final package in _packages) {
+      if (package.type == AssetPackageType.track &&
+          package.trackMetadata?.track == identifier) {
+        return package.trackMetadata!;
+      }
+    }
+
+    throw CatalogTrackNotFoundError(
+      'Track with identifier ${identifier.value} not found in catalog',
+    );
+  }
+}
+
+class CatalogTrackNotFoundError extends Error {
+  final String message;
+
+  CatalogTrackNotFoundError(this.message);
+
+  @override
+  String toString() => 'CatalogTrackNotFoundError: $message';
 }
 
 abstract interface class AssetCatalogRepository {

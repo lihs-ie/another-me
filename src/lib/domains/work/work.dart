@@ -1,8 +1,10 @@
 import 'package:another_me/domains/common/event.dart';
 import 'package:another_me/domains/common/identifier.dart';
+import 'package:another_me/domains/common/scheduler.dart';
 import 'package:another_me/domains/common/value_object.dart';
 import 'package:another_me/domains/common/variant.dart';
 import 'package:another_me/domains/profile/profile.dart';
+import 'package:logger/logger.dart';
 import 'package:ulid/ulid.dart';
 
 class PomodoroSessionIdentifier extends ULIDBasedIdentifier {
@@ -227,6 +229,23 @@ class PomodoroSessionCompleted extends PomodoroSessionEvent {
   }) : super(occurredAt);
 }
 
+class PomodoroSessionAbandoned extends PomodoroSessionEvent {
+  final PomodoroSessionIdentifier identifier;
+  final int totalWorkMs;
+  final int totalBreakMs;
+  final int cycles;
+  final DateTime abandonedAt;
+
+  PomodoroSessionAbandoned({
+    required this.identifier,
+    required this.totalWorkMs,
+    required this.totalBreakMs,
+    required this.cycles,
+    required this.abandonedAt,
+    required DateTime occurredAt,
+  }) : super(occurredAt);
+}
+
 class PomodoroSession with Publishable<PomodoroSessionEvent> {
   final PomodoroSessionIdentifier identifier;
   PomodoroSessionStatus status;
@@ -342,6 +361,44 @@ class PomodoroSession with Publishable<PomodoroSessionEvent> {
     _transitionToNextPhase(completedAt: skippedAt);
   }
 
+  void abandon({required DateTime abandonedAt}) {
+    if (status != PomodoroSessionStatus.running &&
+        status != PomodoroSessionStatus.paused) {
+      throw StateError('Cannot abandon session from status: $status');
+    }
+
+    if (phase == SessionPhase.idle) {
+      throw StateError('Cannot abandon from idle phase');
+    }
+
+    final phaseStartTime = _calculatePhaseStartTime(abandonedAt);
+
+    phaseHistory.add(
+      PhaseHistory(
+        phase: phase,
+        startedAt: phaseStartTime,
+        endedAt: abandonedAt,
+        skipped: true,
+      ),
+    );
+
+    final stats = _calculateSessionStats();
+
+    status = PomodoroSessionStatus.completed;
+    phase = SessionPhase.idle;
+
+    publish(
+      PomodoroSessionAbandoned(
+        identifier: identifier,
+        totalWorkMs: stats.totalWorkMs,
+        totalBreakMs: stats.totalBreakMs,
+        cycles: elapsedCycles,
+        abandonedAt: abandonedAt,
+        occurredAt: abandonedAt,
+      ),
+    );
+  }
+
   bool tick({required DateTime currentTime}) {
     if (status != PomodoroSessionStatus.running) {
       throw StateError('Cannot tick from status: $status');
@@ -352,6 +409,7 @@ class PomodoroSession with Publishable<PomodoroSessionEvent> {
     if (elapsedMs > 2000) {
       remainingTime = RemainingTime(ms: 0);
       lastTickAt = currentTime;
+
       _completePhase(completedAt: currentTime);
       return true;
     }
@@ -540,6 +598,7 @@ class PomodoroSessionSearchCriteria implements ValueObject {
 }
 
 abstract class PomodoroSessionRepository {
+  Future<PomodoroSession> find(PomodoroSessionIdentifier identifier);
   Future<PomodoroSession> search(PomodoroSessionSearchCriteria criteria);
   Future<void> persist(PomodoroSession session);
   Future<void> terminate(PomodoroSessionIdentifier identifier);
@@ -788,4 +847,58 @@ abstract class SessionLogRepository {
     required ProfileIdentifier profile,
     required int limit,
   });
+}
+
+abstract interface class PomodoroSessionTickHandler {
+  Future<void> execute({
+    required PomodoroSessionIdentifier sessionIdentifier,
+    required DateTime currentTime,
+  });
+}
+
+class PomodoroTimerSubscriber implements EventSubscriber {
+  final PeriodicTaskScheduler scheduler;
+  final PomodoroSessionTickHandler tickHandler;
+  final Logger logger;
+
+  PomodoroSessionIdentifier? _activeIdentifier;
+
+  PomodoroTimerSubscriber({
+    required this.scheduler,
+    required this.tickHandler,
+    required this.logger,
+  });
+
+  @override
+  void subscribe(EventBroker broker) {
+    broker.listen<PomodoroPhaseStarted>(_onPhaseStarted);
+    broker.listen<PomodoroSessionCompleted>(_onSessionCompleted);
+  }
+
+  void _onPhaseStarted(PomodoroPhaseStarted event) {
+    logger.d('Starting timer for session ${event.identifier.value}');
+
+    _activeIdentifier = event.identifier;
+
+    scheduler.schedule(
+      interval: const Duration(seconds: 1),
+      task: () async {
+        if (_activeIdentifier != null) {
+          await tickHandler.execute(
+            sessionIdentifier: _activeIdentifier!,
+            currentTime: DateTime.now(),
+          );
+        }
+      },
+    );
+  }
+
+  void _onSessionCompleted(PomodoroSessionCompleted event) {
+    if (event.identifier == _activeIdentifier) {
+      logger.d('Stopping timer for session ${event.identifier.value}');
+      scheduler.cancel();
+
+      _activeIdentifier = null;
+    }
+  }
 }

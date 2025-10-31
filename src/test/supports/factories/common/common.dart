@@ -1,3 +1,4 @@
+export 'connectivity.dart';
 export 'date.dart';
 export 'identifier.dart';
 export 'locale.dart';

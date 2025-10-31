@@ -130,6 +130,7 @@ typedef TrackRegistrationRequestOverrides = ({
   LicenseIdentifier? license,
   String? catalogTrackID,
   URL? downloadURL,
+  bool? allowOffline,
 });
 
 class TrackRegistrationRequestFactory
@@ -192,6 +193,8 @@ class TrackRegistrationRequestFactory
           seed: seed,
         );
 
+    final allowOffline = overrides?.allowOffline ?? (seed % 2 == 0);
+
     return TrackRegistrationRequest(
       identifier: identifier,
       title: title,
@@ -205,6 +208,7 @@ class TrackRegistrationRequestFactory
       license: license,
       catalogTrackID: catalogTrackID,
       downloadURL: downloadURL,
+      allowOffline: allowOffline,
     );
   }
 
@@ -259,6 +263,8 @@ class TrackRegistrationRequestFactory
         overrides?.downloadURL ??
         Builder(URLFactory()).duplicate(instance: instance.downloadURL);
 
+    final allowOffline = overrides?.allowOffline ?? instance.allowOffline;
+
     return TrackRegistrationRequest(
       identifier: identifier,
       title: title,
@@ -272,12 +278,53 @@ class TrackRegistrationRequestFactory
       license: license,
       catalogTrackID: catalogTrackID,
       downloadURL: downloadURL,
+      allowOffline: allowOffline,
     );
   }
 }
 
 class TrackStatusFactory extends EnumFactory<TrackStatus> {
   TrackStatusFactory() : super(TrackStatus.values);
+}
+
+typedef TrackSearchCriteriaOverrides = ({
+  LicenseIdentifier? license,
+  Set<TrackStatus>? statuses,
+});
+
+class TrackSearchCriteriaFactory
+    extends Factory<TrackSearchCriteria, TrackSearchCriteriaOverrides> {
+  @override
+  TrackSearchCriteria create({
+    TrackSearchCriteriaOverrides? overrides,
+    required int seed,
+  }) {
+    final license =
+        overrides?.license ??
+        (seed % 2 == 0
+            ? Builder(LicenseIdentifierFactory()).buildWith(seed: seed)
+            : null);
+
+    final statuses =
+        overrides?.statuses ??
+        (seed % 3 == 0
+            ? {Builder(TrackStatusFactory()).buildWith(seed: seed)}
+            : null);
+
+    return TrackSearchCriteria.create(license: license, statuses: statuses);
+  }
+
+  @override
+  TrackSearchCriteria duplicate(
+    TrackSearchCriteria instance,
+    TrackSearchCriteriaOverrides? overrides,
+  ) {
+    final license = overrides?.license ?? instance.license;
+
+    final statuses = overrides?.statuses ?? instance.statuses;
+
+    return TrackSearchCriteria.create(license: license, statuses: statuses);
+  }
 }
 
 typedef TrackOverrides = ({
@@ -291,6 +338,7 @@ typedef TrackOverrides = ({
   LoopPoint? loopPoint,
   LufsValue? lufsTarget,
   LicenseIdentifier? license,
+  bool? allowOffline,
   CatalogSource? catalogSource,
   TrackStatus? status,
 });
@@ -312,11 +360,20 @@ class TrackFactory extends Factory<Track, TrackOverrides> {
         license: overrides?.license,
         catalogTrackID: overrides?.catalogSource?.catalogTrackID,
         downloadURL: overrides?.catalogSource?.downloadURL,
+        allowOffline: overrides?.allowOffline,
       ),
       seed: seed,
     );
 
-    return Track.registerFromCatalog(request);
+    final track = Track.registerFromCatalog(request);
+
+    if (overrides?.status != null &&
+        overrides!.status == TrackStatus.deprecated) {
+      track.events();
+      track.markDeprecated('Test deprecation');
+    }
+
+    return track;
   }
 
   @override
@@ -509,6 +566,24 @@ class _TrackRepository implements TrackRepository {
   }
 
   @override
+  Future<List<Track>> search(TrackSearchCriteria criteria) {
+    final results = _instances.values.where((track) {
+      if (criteria.license != null && track.license != criteria.license) {
+        return false;
+      }
+
+      if (criteria.statuses != null &&
+          !criteria.statuses!.contains(track.status)) {
+        return false;
+      }
+
+      return true;
+    }).toList();
+
+    return Future.value(results);
+  }
+
+  @override
   Future<void> persist(Track track) {
     _instances[track.identifier] = track;
 
@@ -558,19 +633,23 @@ class TrackRepositoryFactory
 typedef PlaylistRepositoryOverrides = ({
   List<Playlist>? instances,
   void Function(Playlist)? onPersist,
+  void Function(PlaylistIdentifier)? onTerminate,
 });
 
 class _PlaylistRepository implements PlaylistRepository {
   final Map<PlaylistIdentifier, Playlist> _instances;
   final void Function(Playlist)? _onPersist;
+  final void Function(PlaylistIdentifier)? _onTerminate;
 
   _PlaylistRepository({
     required List<Playlist> instances,
     void Function(Playlist)? onPersist,
+    void Function(PlaylistIdentifier)? onTerminate,
   }) : _instances = {
          for (final instance in instances) instance.identifier: instance,
        },
-       _onPersist = onPersist;
+       _onPersist = onPersist,
+       _onTerminate = onTerminate;
 
   @override
   Future<Playlist> find(PlaylistIdentifier identifier) {
@@ -605,6 +684,10 @@ class _PlaylistRepository implements PlaylistRepository {
   Future<void> terminate(PlaylistIdentifier identifier) {
     _instances.remove(identifier);
 
+    if (_onTerminate != null) {
+      _onTerminate(identifier);
+    }
+
     return Future.value();
   }
 }
@@ -625,6 +708,7 @@ class PlaylistRepositoryFactory
     return _PlaylistRepository(
       instances: instances,
       onPersist: overrides?.onPersist,
+      onTerminate: overrides?.onTerminate,
     );
   }
 
@@ -926,6 +1010,63 @@ class TrackRegistrationFailedFactory
       catalogTrackID: catalogTrackID,
       reason: reason,
       occurredAt: occurredAt,
+    );
+  }
+}
+
+typedef TrackPlaybackStartedOverrides = ({
+  TrackIdentifier? trackIdentifier,
+  String? playbackMode,
+  DateTime? startedAt,
+});
+
+class TrackPlaybackStartedFactory
+    extends Factory<TrackPlaybackStarted, TrackPlaybackStartedOverrides> {
+  @override
+  TrackPlaybackStarted create({
+    TrackPlaybackStartedOverrides? overrides,
+    required int seed,
+  }) {
+    final trackIdentifier =
+        overrides?.trackIdentifier ??
+        Builder(TrackIdentifierFactory()).buildWith(seed: seed);
+
+    final playbackModes = ['normal', 'loop', 'shuffle'];
+    final playbackMode =
+        overrides?.playbackMode ?? playbackModes[seed % playbackModes.length];
+
+    final startedAt =
+        overrides?.startedAt ??
+        Builder(DateTimeFactory()).buildWith(seed: seed);
+
+    return TrackPlaybackStarted(
+      trackIdentifier: trackIdentifier,
+      playbackMode: playbackMode,
+      startedAt: startedAt,
+    );
+  }
+
+  @override
+  TrackPlaybackStarted duplicate(
+    TrackPlaybackStarted instance,
+    TrackPlaybackStartedOverrides? overrides,
+  ) {
+    final trackIdentifier =
+        overrides?.trackIdentifier ??
+        Builder(
+          TrackIdentifierFactory(),
+        ).duplicate(instance: instance.trackIdentifier);
+
+    final playbackMode = overrides?.playbackMode ?? instance.playbackMode;
+
+    final startedAt =
+        overrides?.startedAt ??
+        Builder(DateTimeFactory()).duplicate(instance: instance.startedAt);
+
+    return TrackPlaybackStarted(
+      trackIdentifier: trackIdentifier,
+      playbackMode: playbackMode,
+      startedAt: startedAt,
     );
   }
 }
@@ -1372,21 +1513,21 @@ class CatalogDownloadCompletedSubscriberFactory
   }
 }
 
-typedef LicenseRecordSyncSubscriberOverrides = ({
+typedef LicenseRecordRevokedSubscriberOverrides = ({
   TrackRepository? trackRepository,
   Transaction? transaction,
   Logger? logger,
 });
 
-class LicenseRecordSyncSubscriberFactory
+class LicenseRecordRevokedSubscriberFactory
     extends
         Factory<
-          LicenseRecordSyncSubscriber,
-          LicenseRecordSyncSubscriberOverrides
+          LicenseRecordRevokedSubscriber,
+          LicenseRecordRevokedSubscriberOverrides
         > {
   @override
-  LicenseRecordSyncSubscriber create({
-    LicenseRecordSyncSubscriberOverrides? overrides,
+  LicenseRecordRevokedSubscriber create({
+    LicenseRecordRevokedSubscriberOverrides? overrides,
     required int seed,
   }) {
     final trackRepository =
@@ -1400,7 +1541,7 @@ class LicenseRecordSyncSubscriberFactory
     final logger =
         overrides?.logger ?? Builder(LoggerFactory()).buildWith(seed: seed);
 
-    return LicenseRecordSyncSubscriber(
+    return LicenseRecordRevokedSubscriber(
       trackRepository: trackRepository,
       transaction: transaction,
       logger: logger,
@@ -1408,9 +1549,9 @@ class LicenseRecordSyncSubscriberFactory
   }
 
   @override
-  LicenseRecordSyncSubscriber duplicate(
-    LicenseRecordSyncSubscriber instance,
-    LicenseRecordSyncSubscriberOverrides? overrides,
+  LicenseRecordRevokedSubscriber duplicate(
+    LicenseRecordRevokedSubscriber instance,
+    LicenseRecordRevokedSubscriberOverrides? overrides,
   ) {
     throw UnimplementedError();
   }

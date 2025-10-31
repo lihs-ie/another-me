@@ -77,6 +77,25 @@ class FilePath implements ValueObject {
 
   @override
   int get hashCode => Object.hash(value, os);
+
+  FilePath combine(String filename) {
+    final separator = _getSeparator();
+    final normalizedDir = value.endsWith(separator)
+        ? value
+        : '$value$separator';
+    return FilePath(value: '$normalizedDir$filename', os: os);
+  }
+
+  String _getSeparator() {
+    switch (os) {
+      case OperatingSystem.windows:
+        return '\\';
+      case OperatingSystem.macOS:
+      case OperatingSystem.iOS:
+      case OperatingSystem.android:
+        return '/';
+    }
+  }
 }
 
 enum ChecksumAlgorithm { sha256, blake3 }
@@ -157,4 +176,12 @@ abstract interface class ChecksumCalculator {
 
 class ChecksumMismatchError extends StateError {
   ChecksumMismatchError(super.message);
+}
+
+abstract interface class ApplicationStoragePathProvider {
+  Future<FilePath> getApplicationSupportDirectory();
+
+  Future<FilePath> getCacheDirectory();
+
+  Future<FilePath> getDocumentsDirectory();
 }

@@ -246,6 +246,16 @@ class _CharacterRepository implements CharacterRepository {
   }
 
   @override
+  Future<Character> findDefault() {
+    final defaultCharacter = _instances.values.firstWhere(
+      (character) => character.status == CharacterStatus.active,
+      orElse: () => throw AggregateNotFoundError('No active character found.'),
+    );
+
+    return Future.value(defaultCharacter);
+  }
+
+  @override
   Future<List<Character>> all() {
     return Future.value(_instances.values.toList());
   }

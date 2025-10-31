@@ -1047,6 +1047,122 @@ void main() {
       });
     });
 
+    group('abandon', () {
+      test(
+        'abandons running session and publishes PomodoroSessionAbandoned event.',
+        () {
+          final policySnapshot = Builder(PomodoroPolicySnapshotFactory())
+              .buildWith(
+                seed: 1,
+                overrides: (
+                  workMinutes: 25,
+                  breakMinutes: 5,
+                  longBreakMinutes: 15,
+                  longBreakEvery: 4,
+                  longBreakEnabled: false,
+                ),
+              );
+
+          final identifier = Builder(
+            PomodoroSessionIdentifierFactory(),
+          ).build();
+
+          final session = PomodoroSession.create(
+            identifier: identifier,
+            policySnapshot: policySnapshot,
+          );
+
+          session.start(
+            policySnapshot: policySnapshot,
+            startedAt: DateTime(2025, 1, 1, 10, 0),
+          );
+
+          final abandonedAt = DateTime(2025, 1, 1, 10, 10);
+
+          session.abandon(abandonedAt: abandonedAt);
+
+          expect(session.status, equals(PomodoroSessionStatus.completed));
+          expect(session.phase, equals(SessionPhase.idle));
+          expect(session.phaseHistory.length, equals(1));
+          expect(session.phaseHistory.first.skipped, isTrue);
+
+          final events = session.events();
+          expect(events.length, equals(2));
+          expect(events.last, isA<PomodoroSessionAbandoned>());
+
+          final abandonedEvent = events.last as PomodoroSessionAbandoned;
+          expect(abandonedEvent.identifier, equals(identifier));
+          expect(abandonedEvent.abandonedAt, equals(abandonedAt));
+        },
+      );
+
+      test('abandons paused session.', () {
+        final policySnapshot = Builder(PomodoroPolicySnapshotFactory()).build();
+
+        final identifier = Builder(PomodoroSessionIdentifierFactory()).build();
+
+        final session = PomodoroSession.create(
+          identifier: identifier,
+          policySnapshot: policySnapshot,
+        );
+
+        session.start(
+          policySnapshot: policySnapshot,
+          startedAt: DateTime(2025, 1, 1, 10, 0),
+        );
+
+        session.pause(pausedAt: DateTime(2025, 1, 1, 10, 10));
+
+        final abandonedAt = DateTime(2025, 1, 1, 10, 15);
+
+        session.abandon(abandonedAt: abandonedAt);
+
+        expect(session.status, equals(PomodoroSessionStatus.completed));
+        expect(session.phase, equals(SessionPhase.idle));
+      });
+
+      test('throws StateError when abandoning from idle status.', () {
+        final policySnapshot = Builder(PomodoroPolicySnapshotFactory()).build();
+
+        final identifier = Builder(PomodoroSessionIdentifierFactory()).build();
+
+        final session = PomodoroSession.create(
+          identifier: identifier,
+          policySnapshot: policySnapshot,
+        );
+
+        expect(
+          () => session.abandon(abandonedAt: DateTime(2025, 1, 1, 10, 0)),
+          throwsStateError,
+        );
+      });
+
+      test('throws StateError when abandoning from completed status.', () {
+        final policySnapshot = Builder(PomodoroPolicySnapshotFactory()).build();
+
+        final identifier = Builder(PomodoroSessionIdentifierFactory()).build();
+
+        final session = PomodoroSession.create(
+          identifier: identifier,
+          policySnapshot: policySnapshot,
+        );
+
+        session.start(
+          policySnapshot: policySnapshot,
+          startedAt: DateTime(2025, 1, 1, 10, 0, 0),
+        );
+
+        session.abandon(abandonedAt: DateTime(2025, 1, 1, 10, 10, 0));
+
+        expect(session.status, equals(PomodoroSessionStatus.completed));
+
+        expect(
+          () => session.abandon(abandonedAt: DateTime(2025, 1, 1, 10, 11, 0)),
+          throwsStateError,
+        );
+      });
+    });
+
     group('complete session', () {
       test('completes full session with multiple cycles.', () {
         final policySnapshot = Builder(PomodoroPolicySnapshotFactory())

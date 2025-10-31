@@ -9,6 +9,7 @@ import 'package:ulid/ulid.dart';
 import '../../../supports/factories/common.dart';
 import '../../../supports/factories/common/date.dart';
 import '../../../supports/factories/common/storage.dart';
+import '../../../supports/factories/import/catalog.dart';
 import '../../../supports/factories/library/asset.dart';
 import '../../../supports/helper/math.dart';
 import '../common/value_object.dart';
@@ -507,6 +508,65 @@ void main() {
 
           final event = events.first as AssetCatalogDeprecated;
           expect(event.reason, equals(reason));
+        });
+      });
+
+      group('findTrack', () {
+        test('returns track metadata when track exists.', () {
+          final trackMetadata = Builder(TrackCatalogMetadataFactory()).build();
+
+          final trackPackage = Builder(AssetPackageFactory()).buildWith(
+            overrides: (
+              identifier: null,
+              type: AssetPackageType.track,
+              resources: null,
+              checksum: null,
+              animationSpecVersion: null,
+              trackMetadata: trackMetadata,
+            ),
+            seed: 1,
+          );
+
+          final catalog = AssetCatalog(
+            identifier: Builder(AssetCatalogIdentifierFactory()).build(),
+            version: Builder(
+              SemanticVersionFactory(),
+            ).build(overrides: (major: 1, minor: 0, patch: 0)),
+            minimumAppVersion: Builder(
+              SemanticVersionFactory(),
+            ).build(overrides: (major: 1, minor: 0, patch: 0)),
+            packages: [trackPackage],
+            publishedAt: Builder(DateTimeFactory()).build(),
+            status: CatalogStatus.published,
+          );
+
+          final result = catalog.findTrack(trackMetadata.track);
+
+          expect(result, equals(trackMetadata));
+        });
+
+        test('throws CatalogTrackNotFoundError when track does not exist.', () {
+          final catalog = AssetCatalog(
+            identifier: Builder(AssetCatalogIdentifierFactory()).build(),
+            version: Builder(
+              SemanticVersionFactory(),
+            ).build(overrides: (major: 1, minor: 0, patch: 0)),
+            minimumAppVersion: Builder(
+              SemanticVersionFactory(),
+            ).build(overrides: (major: 1, minor: 0, patch: 0)),
+            packages: [],
+            publishedAt: Builder(DateTimeFactory()).build(),
+            status: CatalogStatus.published,
+          );
+
+          final nonExistentTrackId = Builder(
+            CatalogTrackIdentifierFactory(),
+          ).build();
+
+          expect(
+            () => catalog.findTrack(nonExistentTrackId),
+            throwsA(isA<CatalogTrackNotFoundError>()),
+          );
         });
       });
     });

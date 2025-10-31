@@ -245,6 +245,16 @@ class _SceneRepository implements SceneRepository {
   }
 
   @override
+  Future<Scene> findDefault() {
+    final defaultScene = _instances.values.firstWhere(
+      (scene) => scene.status == SceneStatus.active,
+      orElse: () => throw AggregateNotFoundError('No active scene found.'),
+    );
+
+    return Future.value(defaultScene);
+  }
+
+  @override
   Future<List<Scene>> search(SceneSearchCriteria criteria) {
     var filtered = _instances.values.where((scene) {
       if (criteria.statuses != null &&

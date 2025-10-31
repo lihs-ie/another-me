@@ -3,6 +3,8 @@ import 'package:another_me/domains/common/variant.dart';
 
 enum LoopMode { single, playlist }
 
+enum PlaybackMode { normal, loop, shuffle }
+
 class FadeDuration implements Comparable<FadeDuration>, ValueObject {
   final int milliseconds;
 
