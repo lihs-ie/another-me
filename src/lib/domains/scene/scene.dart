@@ -554,6 +554,7 @@ class SceneFactory {
 
 abstract interface class SceneRepository {
   Future<Scene> find(SceneIdentifier identifier);
+  Future<Scene> findDefault();
   Future<List<Scene>> search(SceneSearchCriteria criteria);
   Future<void> persist(Scene scene);
   Future<List<Scene>> all();

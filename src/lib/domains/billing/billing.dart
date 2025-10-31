@@ -8,6 +8,7 @@ import 'package:another_me/domains/common/transaction.dart';
 import 'package:another_me/domains/common/value_object.dart';
 import 'package:another_me/domains/common/variant.dart';
 import 'package:another_me/domains/media/media.dart';
+import 'package:another_me/domains/profile/profile.dart';
 import 'package:logger/logger.dart';
 import 'package:ulid/ulid.dart';
 
@@ -460,6 +461,7 @@ enum OverLimitType { tracks, characters }
 
 class Entitlement with Publishable<EntitlementEvent> {
   final EntitlementIdentifier identifier;
+  final ProfileIdentifier profile;
   final PlanIdentifier plan;
   final SubscriptionIdentifier? subscription;
   int version;
@@ -470,6 +472,7 @@ class Entitlement with Publishable<EntitlementEvent> {
 
   Entitlement({
     required this.identifier,
+    required this.profile,
     required this.plan,
     this.subscription,
     required this.version,
@@ -690,6 +693,7 @@ class EntitlementQuotaAdjusted extends EntitlementEvent {
 
 abstract class PlanRepository {
   Future<Plan> find(PlanIdentifier identifier);
+  Future<Plan> findDefault();
   Future<List<Plan>> all();
   Future<void> persist(Plan plan);
 }
@@ -701,6 +705,7 @@ abstract class SubscriptionRepository {
 
 abstract class EntitlementRepository {
   Future<Entitlement> find(EntitlementIdentifier identifier);
+  Future<Entitlement> findByProfile(ProfileIdentifier profile);
   Future<List<Entitlement>> all();
   Future<void> persist(Entitlement entitlement);
 }

@@ -1,3 +1,4 @@
+import 'package:another_me/domains/common/audio.dart';
 import 'package:another_me/domains/common/date.dart';
 import 'package:another_me/domains/common/range.dart';
 import 'package:another_me/domains/common/url.dart';
@@ -297,6 +298,69 @@ void main() {
       });
     });
 
+    group('CatalogDownloadRequest', () {
+      group('instantiate', () {
+        group('successfully with', () {
+          test('valid parameters', () {
+            final catalogTrack = Builder(
+              CatalogTrackIdentifierFactory(),
+            ).build();
+
+            final downloadURL = Builder(SignedURLFactory()).build();
+
+            final estimatedSizeBytes = 1024 * 1024;
+
+            final targetPath = Builder(FilePathFactory()).build();
+
+            final metadata = Builder(DownloadJobMetadataFactory()).build();
+
+            final instance = CatalogDownloadRequest(
+              catalogTrack: catalogTrack,
+              downloadURL: downloadURL,
+              estimatedSizeBytes: estimatedSizeBytes,
+              targetPath: targetPath,
+              metadata: metadata,
+            );
+
+            expect(instance.catalogTrack, equals(catalogTrack));
+            expect(instance.downloadURL, equals(downloadURL));
+            expect(instance.estimatedSizeBytes, equals(estimatedSizeBytes));
+            expect(instance.targetPath, equals(targetPath));
+            expect(instance.metadata, equals(metadata));
+          });
+        });
+
+        group('unsuccessfully with', () {
+          test('estimatedSizeBytes = 0', () {
+            expect(
+              () => CatalogDownloadRequest(
+                catalogTrack: Builder(CatalogTrackIdentifierFactory()).build(),
+                downloadURL: Builder(SignedURLFactory()).build(),
+                estimatedSizeBytes: 0,
+                targetPath: Builder(FilePathFactory()).build(),
+                metadata: Builder(DownloadJobMetadataFactory()).build(),
+              ),
+              throwsA(isA<InvariantViolationError>()),
+            );
+          });
+
+          test('estimatedSizeBytes too large', () {
+            expect(
+              () => CatalogDownloadRequest(
+                catalogTrack: Builder(CatalogTrackIdentifierFactory()).build(),
+                downloadURL: Builder(SignedURLFactory()).build(),
+                estimatedSizeBytes:
+                    CatalogDownloadRequest.maxEstimatedSizeBytes + 1,
+                targetPath: Builder(FilePathFactory()).build(),
+                metadata: Builder(DownloadJobMetadataFactory()).build(),
+              ),
+              throwsA(isA<InvariantViolationError>()),
+            );
+          });
+        });
+      });
+    });
+
     group('RetryState', () {
       group('recordFailure', () {
         test('increments retry count and stores failure reason', () {
@@ -348,6 +412,40 @@ void main() {
 
           expect(resetState.retryCount, equals(0));
           expect(resetState.failureReason, isNull);
+        });
+      });
+
+      group('incrementRetryCount', () {
+        test('increments retry count successfully', () {
+          final state = Builder(RetryStateFactory()).build(
+            overrides: (
+              failureReason: Builder(FailureReasonFactory()).build(
+                overrides: (code: FailureCode.networkError, message: null),
+              ),
+              retryCount: 1,
+            ),
+          );
+
+          final newState = state.incrementRetryCount();
+
+          expect(newState.retryCount, equals(2));
+          expect(newState.failureReason, equals(state.failureReason));
+        });
+
+        test('throws when retry count exceeds max allowed', () {
+          final state = Builder(RetryStateFactory()).build(
+            overrides: (
+              failureReason: Builder(FailureReasonFactory()).build(
+                overrides: (code: FailureCode.networkError, message: null),
+              ),
+              retryCount: RetryState.maxAllowedRetries,
+            ),
+          );
+
+          expect(
+            () => state.incrementRetryCount(),
+            throwsA(isA<RetryLimitExceededError>()),
+          );
         });
       });
     });
@@ -423,6 +521,29 @@ void main() {
     });
 
     group('CatalogDownloadJob', () {
+      group('queue', () {
+        test('creates new job in pending status', () {
+          final request = Builder(CatalogDownloadRequestFactory()).build();
+
+          final job = CatalogDownloadJob.queue(request);
+
+          expect(job.catalogTrack, equals(request.catalogTrack));
+          expect(job.downloadUrl, equals(request.downloadURL));
+          expect(job.estimatedSizeBytes, equals(request.estimatedSizeBytes));
+          expect(job.metadata, equals(request.metadata));
+          expect(job.status, equals(DownloadStatus.pending));
+          expect(job.retryState.retryCount, equals(0));
+
+          final events = job.events();
+          expect(events.length, equals(1));
+          expect(events.first, isA<CatalogDownloadQueued>());
+          final queuedEvent = events.first as CatalogDownloadQueued;
+          expect(queuedEvent.job, equals(job.identifier));
+          expect(queuedEvent.catalogTrack, equals(request.catalogTrack));
+          expect(queuedEvent.isRetry, isFalse);
+        });
+      });
+
       group('startDownload', () {
         test('transitions from pending to downloading', () {
           final job = Builder(CatalogDownloadJobFactory()).build(
@@ -657,6 +778,91 @@ void main() {
           expect(job.status, equals(DownloadStatus.pending));
           expect(job.retryState.retryCount, equals(0));
           expect(job.retryState.failureReason, isNull);
+        });
+      });
+
+      group('reset', () {
+        test('resets job to pending status with incremented retry count', () {
+          final job = Builder(CatalogDownloadJobFactory()).build(
+            overrides: (
+              identifier: null,
+              catalogTrack: null,
+              downloadUrl: null,
+              estimatedSizeBytes: null,
+              metadata: null,
+              status: DownloadStatus.failed,
+              timeline: null,
+              checksums: null,
+              retryState: Builder(RetryStateFactory()).build(
+                overrides: (
+                  failureReason: Builder(FailureReasonFactory()).build(
+                    overrides: (code: FailureCode.networkError, message: null),
+                  ),
+                  retryCount: 1,
+                ),
+              ),
+              paths: null,
+            ),
+          );
+
+          job.reset();
+
+          expect(job.status, equals(DownloadStatus.pending));
+          expect(job.retryState.retryCount, equals(2));
+
+          final events = job.events();
+          expect(events.length, equals(1));
+          expect(events.first, isA<CatalogDownloadQueued>());
+          final queuedEvent = events.first as CatalogDownloadQueued;
+          expect(queuedEvent.isRetry, isTrue);
+        });
+
+        test('throws when not in failed status', () {
+          final job = Builder(CatalogDownloadJobFactory()).build(
+            overrides: (
+              identifier: null,
+              catalogTrack: null,
+              downloadUrl: null,
+              estimatedSizeBytes: null,
+              metadata: null,
+              status: DownloadStatus.pending,
+              timeline: null,
+              checksums: null,
+              retryState: null,
+              paths: null,
+            ),
+          );
+
+          expect(
+            () => job.reset(),
+            throwsA(isA<InvalidStatusTransitionError>()),
+          );
+        });
+
+        test('throws when retry limit exceeded', () {
+          final job = Builder(CatalogDownloadJobFactory()).build(
+            overrides: (
+              identifier: null,
+              catalogTrack: null,
+              downloadUrl: null,
+              estimatedSizeBytes: null,
+              metadata: null,
+              status: DownloadStatus.failed,
+              timeline: null,
+              checksums: null,
+              retryState: Builder(RetryStateFactory()).build(
+                overrides: (
+                  failureReason: Builder(FailureReasonFactory()).build(
+                    overrides: (code: FailureCode.networkError, message: null),
+                  ),
+                  retryCount: RetryState.maxAllowedRetries,
+                ),
+              ),
+              paths: null,
+            ),
+          );
+
+          expect(() => job.reset(), throwsA(isA<RetryLimitExceededError>()));
         });
       });
     });

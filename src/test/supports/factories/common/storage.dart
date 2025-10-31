@@ -168,3 +168,98 @@ class ChecksumFactory
     return Checksum(algorithm: algorithm, value: value);
   }
 }
+
+typedef ApplicationStoragePathProviderOverrides = ({
+  FilePath? applicationSupportPath,
+  FilePath? cachePath,
+  FilePath? documentsPath,
+});
+
+class _ApplicationStoragePathProvider
+    implements ApplicationStoragePathProvider {
+  final FilePath _applicationSupportPath;
+  final FilePath _cachePath;
+  final FilePath _documentsPath;
+
+  _ApplicationStoragePathProvider({
+    required FilePath applicationSupportPath,
+    required FilePath cachePath,
+    required FilePath documentsPath,
+  }) : _applicationSupportPath = applicationSupportPath,
+       _cachePath = cachePath,
+       _documentsPath = documentsPath;
+
+  @override
+  Future<FilePath> getApplicationSupportDirectory() {
+    return Future.value(_applicationSupportPath);
+  }
+
+  @override
+  Future<FilePath> getCacheDirectory() {
+    return Future.value(_cachePath);
+  }
+
+  @override
+  Future<FilePath> getDocumentsDirectory() {
+    return Future.value(_documentsPath);
+  }
+}
+
+class ApplicationStoragePathProviderFactory
+    extends
+        Factory<
+          ApplicationStoragePathProvider,
+          ApplicationStoragePathProviderOverrides
+        > {
+  @override
+  ApplicationStoragePathProvider create({
+    ApplicationStoragePathProviderOverrides? overrides,
+    required int seed,
+  }) {
+    final os = Builder(OperatingSystemFactory()).buildWith(seed: seed);
+
+    final applicationSupportPath =
+        overrides?.applicationSupportPath ??
+        _generatePath(os, 'ApplicationSupport', seed);
+
+    final cachePath =
+        overrides?.cachePath ?? _generatePath(os, 'Cache', seed + 1);
+
+    final documentsPath =
+        overrides?.documentsPath ?? _generatePath(os, 'Documents', seed + 2);
+
+    return _ApplicationStoragePathProvider(
+      applicationSupportPath: applicationSupportPath,
+      cachePath: cachePath,
+      documentsPath: documentsPath,
+    );
+  }
+
+  FilePath _generatePath(OperatingSystem os, String dirName, int seed) {
+    final separator = switch (os) {
+      OperatingSystem.windows => '\\',
+      _ => '/',
+    };
+
+    final value = switch (os) {
+      OperatingSystem.windows =>
+        'C:${separator}Users${separator}Test${separator}AppData${separator}Local${separator}TestApp$seed$separator$dirName',
+      OperatingSystem.macOS =>
+        '${separator}Users${separator}test${separator}Library$separator$dirName${separator}TestApp$seed',
+      OperatingSystem.iOS =>
+        '${separator}var${separator}mobile${separator}Containers${separator}Data${separator}Application${separator}TEST-ID-$seed${separator}Library$separator$dirName',
+      OperatingSystem.android =>
+        '${separator}data${separator}data${separator}com.example.testapp$seed$separator$dirName',
+    };
+
+    return FilePath(value: value, os: os);
+  }
+
+  @override
+  ApplicationStoragePathProvider duplicate(
+    ApplicationStoragePathProvider instance,
+    ApplicationStoragePathProviderOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}

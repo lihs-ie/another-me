@@ -1,6 +1,8 @@
 import 'package:another_me/domains/common/storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../../supports/factories/common.dart';
+import '../../../supports/factories/common/storage.dart';
 import '../../../supports/factories/string.dart';
 import 'value_object.dart';
 
@@ -48,6 +50,105 @@ void main() {
         ),
       ],
     );
+
+    group('FilePath', () {
+      group('combine', () {
+        test(
+          'combines directory path with filename using forward slash on macOS.',
+          () {
+            final dirPath = FilePath(
+              value: '/Users/test/Documents',
+              os: OperatingSystem.macOS,
+            );
+            final result = dirPath.combine('file.txt');
+
+            expect(result.value, equals('/Users/test/Documents/file.txt'));
+            expect(result.os, equals(OperatingSystem.macOS));
+          },
+        );
+
+        test(
+          'combines directory path with filename using forward slash on iOS.',
+          () {
+            final dirPath = FilePath(
+              value: '/var/mobile/Documents',
+              os: OperatingSystem.iOS,
+            );
+            final result = dirPath.combine('audio.mp3');
+
+            expect(result.value, equals('/var/mobile/Documents/audio.mp3'));
+            expect(result.os, equals(OperatingSystem.iOS));
+          },
+        );
+
+        test(
+          'combines directory path with filename using forward slash on Android.',
+          () {
+            final dirPath = FilePath(
+              value: '/data/data/com.example/files',
+              os: OperatingSystem.android,
+            );
+            final result = dirPath.combine('data.json');
+
+            expect(
+              result.value,
+              equals('/data/data/com.example/files/data.json'),
+            );
+            expect(result.os, equals(OperatingSystem.android));
+          },
+        );
+
+        test(
+          'combines directory path with filename using backslash on Windows.',
+          () {
+            final dirPath = FilePath(
+              value: r'C:\Users\Test\Documents',
+              os: OperatingSystem.windows,
+            );
+            final result = dirPath.combine('file.txt');
+
+            expect(result.value, equals(r'C:\Users\Test\Documents\file.txt'));
+            expect(result.os, equals(OperatingSystem.windows));
+          },
+        );
+
+        test(
+          'adds separator when directory path does not end with separator.',
+          () {
+            final dirPath = FilePath(
+              value: '/Users/test/Documents',
+              os: OperatingSystem.macOS,
+            );
+            final result = dirPath.combine('file.txt');
+
+            expect(result.value, equals('/Users/test/Documents/file.txt'));
+          },
+        );
+
+        test(
+          'does not add extra separator when directory path ends with separator.',
+          () {
+            final dirPath = FilePath(
+              value: '/Users/test/Documents/',
+              os: OperatingSystem.macOS,
+            );
+            final result = dirPath.combine('file.txt');
+
+            expect(result.value, equals('/Users/test/Documents/file.txt'));
+          },
+        );
+
+        test('works with Windows path ending with backslash.', () {
+          final dirPath = FilePath(
+            value: r'C:\Users\Test\Documents\',
+            os: OperatingSystem.windows,
+          );
+          final result = dirPath.combine('file.txt');
+
+          expect(result.value, equals(r'C:\Users\Test\Documents\file.txt'));
+        });
+      });
+    });
 
     group('ChecksumAlgorithm', () {
       test('declares all defined enumerators.', () {
@@ -109,5 +210,83 @@ void main() {
         (algorithm: props.algorithm, value: ''),
       ],
     );
+
+    group('ApplicationStoragePathProvider', () {
+      test('returns application support directory.', () async {
+        final provider = Builder(
+          ApplicationStoragePathProviderFactory(),
+        ).build();
+        final path = await provider.getApplicationSupportDirectory();
+
+        expect(path, isA<FilePath>());
+        expect(path.value, isNotEmpty);
+      });
+
+      test('returns cache directory.', () async {
+        final provider = Builder(
+          ApplicationStoragePathProviderFactory(),
+        ).build();
+        final path = await provider.getCacheDirectory();
+
+        expect(path, isA<FilePath>());
+        expect(path.value, isNotEmpty);
+      });
+
+      test('returns documents directory.', () async {
+        final provider = Builder(
+          ApplicationStoragePathProviderFactory(),
+        ).build();
+        final path = await provider.getDocumentsDirectory();
+
+        expect(path, isA<FilePath>());
+        expect(path.value, isNotEmpty);
+      });
+
+      test('respects overridden paths.', () async {
+        final customAppSupportPath = FilePath(
+          value: '/custom/app/support',
+          os: OperatingSystem.macOS,
+        );
+        final customCachePath = FilePath(
+          value: '/custom/cache',
+          os: OperatingSystem.macOS,
+        );
+        final customDocsPath = FilePath(
+          value: '/custom/documents',
+          os: OperatingSystem.macOS,
+        );
+
+        final provider = Builder(ApplicationStoragePathProviderFactory())
+            .buildWith(
+              overrides: (
+                applicationSupportPath: customAppSupportPath,
+                cachePath: customCachePath,
+                documentsPath: customDocsPath,
+              ),
+              seed: 1,
+            );
+
+        final appSupportPath = await provider.getApplicationSupportDirectory();
+        final cachePath = await provider.getCacheDirectory();
+        final docsPath = await provider.getDocumentsDirectory();
+
+        expect(appSupportPath, equals(customAppSupportPath));
+        expect(cachePath, equals(customCachePath));
+        expect(docsPath, equals(customDocsPath));
+      });
+
+      test('generates platform-specific paths.', () async {
+        final provider = Builder(
+          ApplicationStoragePathProviderFactory(),
+        ).buildWith(seed: 42);
+
+        final appSupportPath = await provider.getApplicationSupportDirectory();
+        final cachePath = await provider.getCacheDirectory();
+        final docsPath = await provider.getDocumentsDirectory();
+
+        expect(appSupportPath.os, equals(cachePath.os));
+        expect(cachePath.os, equals(docsPath.os));
+      });
+    });
   });
 }

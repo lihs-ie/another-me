@@ -1,4 +1,6 @@
+import 'package:another_me/domains/common/audio.dart';
 import 'package:another_me/domains/common/date.dart';
+import 'package:another_me/domains/common/error.dart';
 import 'package:another_me/domains/common/range.dart';
 import 'package:another_me/domains/common/storage.dart';
 import 'package:another_me/domains/common/url.dart';
@@ -296,6 +298,92 @@ class DownloadAssetPathsFactory
   }
 }
 
+typedef CatalogDownloadRequestOverrides = ({
+  CatalogTrackIdentifier? catalogTrack,
+  SignedURL? downloadURL,
+  int? estimatedSizeBytes,
+  FilePath? targetPath,
+  DownloadJobMetadata? metadata,
+});
+
+class CatalogDownloadRequestFactory
+    extends Factory<CatalogDownloadRequest, CatalogDownloadRequestOverrides> {
+  @override
+  CatalogDownloadRequest create({
+    CatalogDownloadRequestOverrides? overrides,
+    required int seed,
+  }) {
+    final catalogTrack =
+        overrides?.catalogTrack ??
+        Builder(CatalogTrackIdentifierFactory()).buildWith(seed: seed);
+
+    final downloadURL =
+        overrides?.downloadURL ??
+        Builder(SignedURLFactory()).buildWith(seed: seed);
+
+    final estimatedSizeBytes =
+        overrides?.estimatedSizeBytes ??
+        ((seed % CatalogDownloadRequest.maxEstimatedSizeBytes) + 1);
+
+    final targetPath =
+        overrides?.targetPath ??
+        Builder(FilePathFactory()).buildWith(seed: seed);
+
+    final metadata =
+        overrides?.metadata ??
+        Builder(DownloadJobMetadataFactory()).buildWith(seed: seed);
+
+    return CatalogDownloadRequest(
+      catalogTrack: catalogTrack,
+      downloadURL: downloadURL,
+      estimatedSizeBytes: estimatedSizeBytes,
+      targetPath: targetPath,
+      metadata: metadata,
+    );
+  }
+
+  @override
+  CatalogDownloadRequest duplicate(
+    CatalogDownloadRequest instance,
+    CatalogDownloadRequestOverrides? overrides,
+  ) {
+    final catalogTrack =
+        overrides?.catalogTrack ??
+        Builder(
+          CatalogTrackIdentifierFactory(),
+        ).duplicate(instance: instance.catalogTrack, overrides: null);
+
+    final downloadURL =
+        overrides?.downloadURL ??
+        Builder(
+          SignedURLFactory(),
+        ).duplicate(instance: instance.downloadURL, overrides: null);
+
+    final estimatedSizeBytes =
+        overrides?.estimatedSizeBytes ?? instance.estimatedSizeBytes;
+
+    final targetPath =
+        overrides?.targetPath ??
+        Builder(
+          FilePathFactory(),
+        ).duplicate(instance: instance.targetPath, overrides: null);
+
+    final metadata =
+        overrides?.metadata ??
+        Builder(
+          DownloadJobMetadataFactory(),
+        ).duplicate(instance: instance.metadata, overrides: null);
+
+    return CatalogDownloadRequest(
+      catalogTrack: catalogTrack,
+      downloadURL: downloadURL,
+      estimatedSizeBytes: estimatedSizeBytes,
+      targetPath: targetPath,
+      metadata: metadata,
+    );
+  }
+}
+
 typedef DownloadJobMetadataOverrides = ({
   CatalogTrackIdentifier? track,
   String? title,
@@ -541,6 +629,188 @@ class CatalogDownloadJobFactory
   CatalogDownloadJob duplicate(
     CatalogDownloadJob instance,
     CatalogDownloadJobOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+typedef CatalogDownloadQueuedOverrides = ({
+  CatalogDownloadJobIdentifier? job,
+  CatalogTrackIdentifier? catalogTrack,
+  bool? isRetry,
+});
+
+class CatalogDownloadQueuedFactory
+    extends Factory<CatalogDownloadQueued, CatalogDownloadQueuedOverrides> {
+  @override
+  CatalogDownloadQueued create({
+    CatalogDownloadQueuedOverrides? overrides,
+    required int seed,
+  }) {
+    final job =
+        overrides?.job ??
+        Builder(CatalogDownloadJobIdentifierFactory()).buildWith(seed: seed);
+
+    final catalogTrack =
+        overrides?.catalogTrack ??
+        Builder(CatalogTrackIdentifierFactory()).buildWith(seed: seed);
+
+    final isRetry = overrides?.isRetry ?? (seed % 2 == 0);
+
+    return CatalogDownloadQueued(
+      job: job,
+      catalogTrack: catalogTrack,
+      isRetry: isRetry,
+    );
+  }
+
+  @override
+  CatalogDownloadQueued duplicate(
+    CatalogDownloadQueued instance,
+    CatalogDownloadQueuedOverrides? overrides,
+  ) {
+    final job =
+        overrides?.job ??
+        Builder(
+          CatalogDownloadJobIdentifierFactory(),
+        ).duplicate(instance: instance.job, overrides: null);
+
+    final catalogTrack =
+        overrides?.catalogTrack ??
+        Builder(
+          CatalogTrackIdentifierFactory(),
+        ).duplicate(instance: instance.catalogTrack, overrides: null);
+
+    final isRetry = overrides?.isRetry ?? instance.isRetry;
+
+    return CatalogDownloadQueued(
+      job: job,
+      catalogTrack: catalogTrack,
+      isRetry: isRetry,
+    );
+  }
+}
+
+typedef CatalogDownloadJobRepositoryOverrides = ({
+  List<CatalogDownloadJob>? instances,
+  void Function(CatalogDownloadJob)? onPersist,
+});
+
+class _CatalogDownloadJobRepository implements CatalogDownloadJobRepository {
+  final Map<CatalogDownloadJobIdentifier, CatalogDownloadJob> _instances;
+  final void Function(CatalogDownloadJob)? _onPersist;
+
+  _CatalogDownloadJobRepository({
+    required List<CatalogDownloadJob> instances,
+    void Function(CatalogDownloadJob)? onPersist,
+  }) : _instances = {
+         for (final instance in instances) instance.identifier: instance,
+       },
+       _onPersist = onPersist;
+
+  @override
+  Future<CatalogDownloadJob> find(CatalogDownloadJobIdentifier identifier) {
+    final instance = _instances[identifier];
+
+    if (instance == null) {
+      throw AggregateNotFoundError(
+        'CatalogDownloadJob with identifier ${identifier.value} not found.',
+      );
+    }
+
+    return Future.value(instance);
+  }
+
+  @override
+  Future<CatalogDownloadJob> findOrNull(
+    CatalogDownloadJobIdentifier identifier,
+  ) {
+    final instance = _instances[identifier];
+
+    if (instance == null) {
+      throw AggregateNotFoundError(
+        'CatalogDownloadJob with identifier ${identifier.value} not found.',
+      );
+    }
+
+    return Future.value(instance);
+  }
+
+  @override
+  Future<void> persist(CatalogDownloadJob job) {
+    _instances[job.identifier] = job;
+
+    _onPersist?.call(job);
+
+    return Future.value();
+  }
+
+  @override
+  Future<List<CatalogDownloadJob>> findByStatus(
+    DownloadStatus status, {
+    int? limit,
+  }) {
+    final jobs = _instances.values
+        .where((job) => job.status == status)
+        .take(limit ?? _instances.length)
+        .toList();
+
+    return Future.value(jobs);
+  }
+
+  @override
+  Future<List<CatalogDownloadJob>> findPending({int? limit = 10}) {
+    return findByStatus(DownloadStatus.pending, limit: limit);
+  }
+
+  @override
+  Future<List<CatalogDownloadJob>> findRetryable({int? limit}) {
+    return findByStatus(DownloadStatus.failed, limit: limit);
+  }
+
+  @override
+  Future<CatalogDownloadJob> findByCatalogTrack(CatalogTrackIdentifier track) {
+    final instance = _instances.values.firstWhere(
+      (job) => job.catalogTrack == track,
+      orElse: () => throw AggregateNotFoundError(
+        'CatalogDownloadJob with catalog track ${track.value} not found.',
+      ),
+    );
+
+    return Future.value(instance);
+  }
+
+  @override
+  Future<void> terminate(CatalogDownloadJobIdentifier identifier) {
+    _instances.remove(identifier);
+
+    return Future.value();
+  }
+}
+
+class CatalogDownloadJobRepositoryFactory
+    extends
+        Factory<
+          CatalogDownloadJobRepository,
+          CatalogDownloadJobRepositoryOverrides
+        > {
+  @override
+  CatalogDownloadJobRepository create({
+    CatalogDownloadJobRepositoryOverrides? overrides,
+    required int seed,
+  }) {
+    final instances = overrides?.instances ?? [];
+
+    return _CatalogDownloadJobRepository(
+      instances: instances,
+      onPersist: overrides?.onPersist,
+    );
+  }
+
+  @override
+  CatalogDownloadJobRepository duplicate(
+    CatalogDownloadJobRepository instance,
+    CatalogDownloadJobRepositoryOverrides? overrides,
   ) {
     throw UnimplementedError();
   }

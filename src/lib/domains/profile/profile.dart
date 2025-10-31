@@ -7,10 +7,12 @@ import 'package:another_me/domains/common/identifier.dart';
 import 'package:another_me/domains/common/locale.dart';
 import 'package:another_me/domains/common/playback.dart';
 import 'package:another_me/domains/common/range.dart';
+import 'package:another_me/domains/common/storage.dart';
 import 'package:another_me/domains/common/theme.dart';
 import 'package:another_me/domains/common/transaction.dart';
 import 'package:another_me/domains/common/value_object.dart';
 import 'package:another_me/domains/common/variant.dart';
+import 'package:another_me/domains/media/media.dart' hide LoopMode;
 import 'package:another_me/domains/scene/scene.dart';
 import 'package:logger/logger.dart';
 import 'package:ulid/ulid.dart';
@@ -179,12 +181,14 @@ class PomodoroPolicy implements ValueObject {
   final int breakMinutes;
   final int longBreakMinutes;
   final int longBreakEvery;
+  final bool longBreakEnabled;
 
   PomodoroPolicy({
     required this.workMinutes,
     required this.breakMinutes,
     required this.longBreakMinutes,
     required this.longBreakEvery,
+    required this.longBreakEnabled,
   }) {
     Invariant.range(value: workMinutes, name: 'workMinutes', min: 1, max: 120);
     Invariant.range(
@@ -228,12 +232,21 @@ class PomodoroPolicy implements ValueObject {
       return false;
     }
 
+    if (longBreakEnabled != other.longBreakEnabled) {
+      return false;
+    }
+
     return true;
   }
 
   @override
-  int get hashCode =>
-      Object.hash(workMinutes, breakMinutes, longBreakMinutes, longBreakEvery);
+  int get hashCode => Object.hash(
+    workMinutes,
+    breakMinutes,
+    longBreakMinutes,
+    longBreakEvery,
+    longBreakEnabled,
+  );
 }
 
 class NotificationPreference implements ValueObject {
@@ -317,6 +330,7 @@ class UserProfile {
 }
 
 abstract interface class UserProfileRepository {
+  Future<UserProfile> find(ProfileIdentifier identifier);
   Future<UserProfile> getDefault();
   Future<void> persist(UserProfile profile);
   Stream<UserProfile> observe(ProfileIdentifier identifier);
@@ -467,4 +481,21 @@ class EntitlementPolicySubscriber implements EventSubscriber {
 class PomodoroSessionSubscriber implements EventSubscriber {
   @override
   void subscribe(EventBroker broker) {}
+}
+
+abstract interface class PlaybackService {
+  Future<void> addToQueue(TrackIdentifier track, PlaybackMode playbackMode);
+  Future<TrackIdentifier?> getNext();
+  Future<void> stop();
+}
+
+abstract interface class AudioPlayer {
+  Future<void> play(
+    FilePath audioPath,
+    FadeDuration fadeInDuration,
+    VolumeLevel volume,
+  );
+  Future<void> stop(FadeDuration fadeOutDuration);
+  Future<void> pause();
+  Future<void> resume();
 }

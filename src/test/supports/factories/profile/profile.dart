@@ -1,9 +1,11 @@
 import 'package:another_me/domains/avatar/avatar.dart';
+import 'package:another_me/domains/common/error.dart';
 import 'package:another_me/domains/common/locale.dart';
 import 'package:another_me/domains/common/playback.dart';
 import 'package:another_me/domains/common/range.dart';
 import 'package:another_me/domains/common/theme.dart';
 import 'package:another_me/domains/common/transaction.dart';
+import 'package:another_me/domains/media/media.dart' as media_domain;
 import 'package:another_me/domains/profile/profile.dart';
 import 'package:another_me/domains/scene/scene.dart';
 import 'package:logger/logger.dart';
@@ -179,6 +181,7 @@ typedef PomodoroPolicyOverrides = ({
   int? breakMinutes,
   int? longBreakMinutes,
   int? longBreakEvery,
+  bool? longBreakEnabled,
 });
 
 class PomodoroPolicyFactory
@@ -192,12 +195,14 @@ class PomodoroPolicyFactory
     final breakMinutes = overrides?.breakMinutes ?? ((seed % 30) + 1);
     final longBreakMinutes = overrides?.longBreakMinutes ?? ((seed % 60) + 1);
     final longBreakEvery = overrides?.longBreakEvery ?? ((seed % 10) + 1);
+    final longBreakEnabled = overrides?.longBreakEnabled ?? (seed % 2 == 0);
 
     return PomodoroPolicy(
       workMinutes: workMinutes,
       breakMinutes: breakMinutes,
       longBreakMinutes: longBreakMinutes,
       longBreakEvery: longBreakEvery,
+      longBreakEnabled: longBreakEnabled,
     );
   }
 
@@ -211,12 +216,15 @@ class PomodoroPolicyFactory
     final longBreakMinutes =
         overrides?.longBreakMinutes ?? instance.longBreakMinutes;
     final longBreakEvery = overrides?.longBreakEvery ?? instance.longBreakEvery;
+    final longBreakEnabled =
+        overrides?.longBreakEnabled ?? instance.longBreakEnabled;
 
     return PomodoroPolicy(
       workMinutes: workMinutes,
       breakMinutes: breakMinutes,
       longBreakMinutes: longBreakMinutes,
       longBreakEvery: longBreakEvery,
+      longBreakEnabled: longBreakEnabled,
     );
   }
 }
@@ -377,6 +385,19 @@ class _UserProfileRepository implements UserProfileRepository {
        _onPersist = onPersist;
 
   @override
+  Future<UserProfile> find(ProfileIdentifier identifier) {
+    final profile = _instances[identifier];
+
+    if (profile == null) {
+      throw AggregateNotFoundError(
+        'UserProfile with identifier ${identifier.value} not found.',
+      );
+    }
+
+    return Future.value(profile);
+  }
+
+  @override
   Future<UserProfile> getDefault() {
     final target = _instances.values.firstWhere(
       (instance) => instance.isDefault,
@@ -502,6 +523,58 @@ class CharacterLifecycleSubscriberFactory
   CharacterLifecycleSubscriber duplicate(
     CharacterLifecycleSubscriber instance,
     CharacterLifecycleSubscriberOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+typedef PlaybackServiceOverrides = ({
+  void Function(media_domain.TrackIdentifier, PlaybackMode)? onAddToQueue,
+});
+
+class _PlaybackService implements PlaybackService {
+  final void Function(media_domain.TrackIdentifier, PlaybackMode)?
+  _onAddToQueue;
+
+  _PlaybackService({
+    void Function(media_domain.TrackIdentifier, PlaybackMode)? onAddToQueue,
+  }) : _onAddToQueue = onAddToQueue;
+
+  @override
+  Future<void> addToQueue(
+    media_domain.TrackIdentifier track,
+    PlaybackMode playbackMode,
+  ) {
+    _onAddToQueue?.call(track, playbackMode);
+
+    return Future.value();
+  }
+
+  @override
+  Future<media_domain.TrackIdentifier?> getNext() {
+    return Future.value(null);
+  }
+
+  @override
+  Future<void> stop() {
+    return Future.value();
+  }
+}
+
+class PlaybackServiceFactory
+    extends Factory<PlaybackService, PlaybackServiceOverrides> {
+  @override
+  PlaybackService create({
+    PlaybackServiceOverrides? overrides,
+    required int seed,
+  }) {
+    return _PlaybackService(onAddToQueue: overrides?.onAddToQueue);
+  }
+
+  @override
+  PlaybackService duplicate(
+    PlaybackService instance,
+    PlaybackServiceOverrides? overrides,
   ) {
     throw UnimplementedError();
   }

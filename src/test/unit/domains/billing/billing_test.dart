@@ -402,6 +402,7 @@ void main() {
         final entitlement = Builder(EntitlementFactory()).build(
           overrides: (
             identifier: null,
+            profile: null,
             plan: null,
             subscription: null,
             version: 1,
@@ -434,6 +435,7 @@ void main() {
         final entitlement = Builder(EntitlementFactory()).build(
           overrides: (
             identifier: null,
+            profile: null,
             plan: null,
             subscription: null,
             version: null,
@@ -467,6 +469,7 @@ void main() {
         final entitlement = Builder(EntitlementFactory()).build(
           overrides: (
             identifier: null,
+            profile: null,
             plan: null,
             subscription: null,
             version: 1,
@@ -496,6 +499,7 @@ void main() {
         final entitlement = Builder(EntitlementFactory()).build(
           overrides: (
             identifier: null,
+            profile: null,
             plan: null,
             subscription: null,
             version: 1,
@@ -522,6 +526,7 @@ void main() {
         final entitlement = Builder(EntitlementFactory()).build(
           overrides: (
             identifier: null,
+            profile: null,
             plan: null,
             subscription: null,
             version: null,

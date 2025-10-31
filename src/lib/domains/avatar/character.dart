@@ -300,6 +300,7 @@ class Character with Publishable<CharacterEvent> {
 
 abstract interface class CharacterRepository {
   Future<Character> find(CharacterIdentifier identifier);
+  Future<Character> findDefault();
   Future<List<Character>> all();
   Future<List<Character>> search(CharacterSearchCriteria criteria);
   Future<void> persist(Character character);

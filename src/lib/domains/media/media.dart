@@ -12,10 +12,6 @@ import 'package:another_me/domains/licensing/licensing.dart';
 import 'package:logger/logger.dart';
 import 'package:ulid/ulid.dart';
 
-// ============================================================================
-// Track Aggregate
-// ============================================================================
-
 class TrackIdentifier extends ULIDBasedIdentifier {
   TrackIdentifier({required Ulid value}) : super(value);
 
@@ -151,6 +147,7 @@ class TrackRegistrationRequest implements ValueObject {
   final LicenseIdentifier license;
   final String catalogTrackID;
   final URL downloadURL;
+  final bool allowOffline;
 
   TrackRegistrationRequest({
     required this.identifier,
@@ -165,6 +162,7 @@ class TrackRegistrationRequest implements ValueObject {
     required this.license,
     required this.catalogTrackID,
     required this.downloadURL,
+    required this.allowOffline,
   }) {
     if (durationMs <= 0) {
       throw InvariantViolationError('durationMs must be positive.');
@@ -200,7 +198,8 @@ class TrackRegistrationRequest implements ValueObject {
         lufsTarget == other.lufsTarget &&
         license == other.license &&
         catalogTrackID == other.catalogTrackID &&
-        downloadURL == other.downloadURL;
+        downloadURL == other.downloadURL &&
+        allowOffline == other.allowOffline;
   }
 
   @override
@@ -215,7 +214,7 @@ class TrackRegistrationRequest implements ValueObject {
     loopPoint,
     lufsTarget,
     license,
-    Object.hash(catalogTrackID, downloadURL),
+    Object.hash(catalogTrackID, downloadURL, allowOffline),
   );
 }
 
@@ -273,6 +272,18 @@ class TrackRegistrationFailed extends TrackEvent {
   }) : super(occurredAt);
 }
 
+class TrackPlaybackStarted extends TrackEvent {
+  final TrackIdentifier trackIdentifier;
+  final String playbackMode;
+  final DateTime startedAt;
+
+  TrackPlaybackStarted({
+    required this.trackIdentifier,
+    required this.playbackMode,
+    required this.startedAt,
+  }) : super(startedAt);
+}
+
 class Track with Publishable<TrackEvent> {
   final TrackIdentifier identifier;
   final String title;
@@ -284,6 +295,7 @@ class Track with Publishable<TrackEvent> {
   final LoopPoint loopPoint;
   final LufsValue lufsTarget;
   final LicenseIdentifier license;
+  final bool allowOffline;
   final CatalogSource catalogSource;
   TrackStatus _status;
 
@@ -298,6 +310,7 @@ class Track with Publishable<TrackEvent> {
     required this.loopPoint,
     required this.lufsTarget,
     required this.license,
+    required this.allowOffline,
     required this.catalogSource,
     required TrackStatus status,
   }) : _status = status {
@@ -336,6 +349,7 @@ class Track with Publishable<TrackEvent> {
       loopPoint: request.loopPoint,
       lufsTarget: request.lufsTarget,
       license: request.license,
+      allowOffline: request.allowOffline,
       catalogSource: CatalogSource(
         catalogTrackID: request.catalogTrackID,
         downloadURL: request.downloadURL,
@@ -387,8 +401,49 @@ class Track with Publishable<TrackEvent> {
   }
 }
 
+class TrackSearchCriteria implements ValueObject {
+  final LicenseIdentifier? license;
+  final Set<TrackStatus>? statuses;
+
+  TrackSearchCriteria({this.license, this.statuses}) {
+    if (license == null && statuses == null) {
+      throw InvariantViolationError(
+        'At least one search criterion must be specified.',
+      );
+    }
+
+    if (statuses != null && statuses!.isEmpty) {
+      throw InvariantViolationError('statuses must not be empty if specified.');
+    }
+  }
+
+  factory TrackSearchCriteria.create({
+    LicenseIdentifier? license,
+    Set<TrackStatus>? statuses,
+  }) {
+    return TrackSearchCriteria(license: license, statuses: statuses);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) {
+      return true;
+    }
+
+    if (other is! TrackSearchCriteria) {
+      return false;
+    }
+
+    return license == other.license && statuses == other.statuses;
+  }
+
+  @override
+  int get hashCode => Object.hash(license, statuses);
+}
+
 abstract interface class TrackRepository {
   Future<Track> find(TrackIdentifier identifier);
+  Future<List<Track>> search(TrackSearchCriteria criteria);
   Future<List<Track>> all();
   Future<void> persist(Track track);
   Future<void> terminate(TrackIdentifier identifier);
@@ -781,6 +836,12 @@ class Playlist with Publishable<PlaylistEvent> {
       ),
     );
   }
+
+  void delete() {
+    final now = DateTime.now();
+
+    publish(PlaylistDeleted(identifier: identifier, occurredAt: now));
+  }
 }
 
 abstract interface class PlaylistRepository {
@@ -836,12 +897,12 @@ class CatalogDownloadCompletedSubscriber implements EventSubscriber {
   }
 }
 
-class LicenseRecordSyncSubscriber implements EventSubscriber {
+class LicenseRecordRevokedSubscriber implements EventSubscriber {
   final TrackRepository trackRepository;
   final Transaction transaction;
   final Logger logger;
 
-  LicenseRecordSyncSubscriber({
+  LicenseRecordRevokedSubscriber({
     required this.trackRepository,
     required this.transaction,
     required this.logger,
@@ -870,4 +931,31 @@ class LicenseRecordSyncSubscriber implements EventSubscriber {
       });
     };
   }
+}
+
+class TrackDeprecatedError extends Error {
+  final String message;
+
+  TrackDeprecatedError(this.message);
+
+  @override
+  String toString() => 'TrackDeprecatedError: $message';
+}
+
+class OfflinePlaybackNotAllowedError extends Error {
+  final String message;
+
+  OfflinePlaybackNotAllowedError(this.message);
+
+  @override
+  String toString() => 'OfflinePlaybackNotAllowedError: $message';
+}
+
+class AudioFileNotFoundError extends Error {
+  final String message;
+
+  AudioFileNotFoundError(this.message);
+
+  @override
+  String toString() => 'AudioFileNotFoundError: $message';
 }

@@ -1,6 +1,8 @@
 import 'package:another_me/domains/common/error.dart';
+import 'package:another_me/domains/common/scheduler.dart';
 import 'package:another_me/domains/profile/profile.dart';
 import 'package:another_me/domains/work/work.dart';
+import 'package:logger/logger.dart';
 import 'package:ulid/ulid.dart';
 
 import '../common.dart';
@@ -264,6 +266,19 @@ class _PomodoroSessionRepository implements PomodoroSessionRepository {
     for (final instance in instances) {
       _instances[instance.identifier] = instance;
     }
+  }
+
+  @override
+  Future<PomodoroSession> find(PomodoroSessionIdentifier identifier) {
+    final instance = _instances[identifier];
+
+    if (instance == null) {
+      throw AggregateNotFoundError(
+        'PomodoroSession with identifier ${identifier.value} not found.',
+      );
+    }
+
+    return Future.value(instance);
   }
 
   @override
@@ -583,6 +598,142 @@ class SessionLogRepositoryFactory
   SessionLogRepository duplicate(
     SessionLogRepository instance,
     SessionLogRepositoryOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+class _PeriodicTaskScheduler implements PeriodicTaskScheduler {
+  Duration? scheduledInterval;
+  Future<void> Function()? scheduledTask;
+  bool isCancelled = false;
+
+  @override
+  void schedule({
+    required Duration interval,
+    required Future<void> Function() task,
+  }) {
+    scheduledInterval = interval;
+    scheduledTask = task;
+    isCancelled = false;
+  }
+
+  @override
+  void cancel() {
+    isCancelled = true;
+    scheduledInterval = null;
+    scheduledTask = null;
+  }
+}
+
+typedef PeriodicTaskSchedulerOverrides = ({
+  Duration? scheduledInterval,
+  Future<void> Function()? scheduledTask,
+});
+
+class PeriodicTaskSchedulerFactory
+    extends Factory<PeriodicTaskScheduler, PeriodicTaskSchedulerOverrides> {
+  @override
+  PeriodicTaskScheduler create({
+    PeriodicTaskSchedulerOverrides? overrides,
+    required int seed,
+  }) {
+    final scheduler = _PeriodicTaskScheduler();
+
+    if (overrides?.scheduledInterval != null) {
+      scheduler.scheduledInterval = overrides!.scheduledInterval;
+    }
+
+    if (overrides?.scheduledTask != null) {
+      scheduler.scheduledTask = overrides!.scheduledTask;
+    }
+
+    return scheduler;
+  }
+
+  @override
+  PeriodicTaskScheduler duplicate(
+    PeriodicTaskScheduler instance,
+    PeriodicTaskSchedulerOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+class _PomodoroSessionTickHandler implements PomodoroSessionTickHandler {
+  final List<
+    ({PomodoroSessionIdentifier sessionIdentifier, DateTime currentTime})
+  >
+  executedCalls = [];
+
+  @override
+  Future<void> execute({
+    required PomodoroSessionIdentifier sessionIdentifier,
+    required DateTime currentTime,
+  }) async {
+    executedCalls.add((
+      sessionIdentifier: sessionIdentifier,
+      currentTime: currentTime,
+    ));
+  }
+}
+
+typedef PomodoroSessionTickHandlerOverrides = Null;
+
+class PomodoroSessionTickHandlerFactory
+    extends
+        Factory<
+          PomodoroSessionTickHandler,
+          PomodoroSessionTickHandlerOverrides
+        > {
+  @override
+  PomodoroSessionTickHandler create({
+    PomodoroSessionTickHandlerOverrides? overrides,
+    required int seed,
+  }) {
+    return _PomodoroSessionTickHandler();
+  }
+
+  @override
+  PomodoroSessionTickHandler duplicate(
+    PomodoroSessionTickHandler instance,
+    PomodoroSessionTickHandlerOverrides? overrides,
+  ) {
+    throw UnimplementedError();
+  }
+}
+
+typedef PomodoroTimerSubscriberOverrides = ({
+  PeriodicTaskScheduler? scheduler,
+  PomodoroSessionTickHandler? tickHandler,
+});
+
+class PomodoroTimerSubscriberFactory
+    extends Factory<PomodoroTimerSubscriber, PomodoroTimerSubscriberOverrides> {
+  @override
+  PomodoroTimerSubscriber create({
+    PomodoroTimerSubscriberOverrides? overrides,
+    required int seed,
+  }) {
+    final scheduler =
+        overrides?.scheduler ??
+        Builder(PeriodicTaskSchedulerFactory()).buildWith(seed: seed);
+
+    final tickHandler =
+        overrides?.tickHandler ??
+        Builder(PomodoroSessionTickHandlerFactory()).buildWith(seed: seed);
+
+    return PomodoroTimerSubscriber(
+      scheduler: scheduler,
+      tickHandler: tickHandler,
+      logger: Logger(),
+    );
+  }
+
+  @override
+  PomodoroTimerSubscriber duplicate(
+    PomodoroTimerSubscriber instance,
+    PomodoroTimerSubscriberOverrides? overrides,
   ) {
     throw UnimplementedError();
   }

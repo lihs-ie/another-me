@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:another_me/domains/common/audio.dart';
 import 'package:another_me/domains/common/date.dart';
 import 'package:another_me/domains/common/event.dart';
 import 'package:another_me/domains/common/identifier.dart';
@@ -190,8 +191,6 @@ class VerificationChecksums implements ValueObject {
     }
   }
 }
-
-enum AudioFormat { aac, m4a, mp3, wav }
 
 class CatalogTrackMetadata implements ValueObject {
   static const int maxTitleLength = 100;
@@ -457,6 +456,16 @@ class RetryState implements ValueObject {
 
     return false;
   }
+
+  RetryState incrementRetryCount() {
+    if (retryCount >= maxAllowedRetries) {
+      throw RetryLimitExceededError(
+        'Retry count has reached the maximum limit of $maxAllowedRetries.',
+      );
+    }
+
+    return RetryState(failureReason: failureReason, retryCount: retryCount + 1);
+  }
 }
 
 class CatalogDownloadJobIdentifier extends ULIDBasedIdentifier {
@@ -549,6 +558,61 @@ class DownloadAssetPaths implements ValueObject {
     final path = '$baseDirectory/licenses/${track.value}_LICENSE.txt';
     return FilePath(value: path, os: OperatingSystem.iOS);
   }
+}
+
+class CatalogDownloadRequest implements ValueObject {
+  static const int maxEstimatedSizeBytes = 209715200;
+
+  final CatalogTrackIdentifier catalogTrack;
+  final SignedURL downloadURL;
+  final int estimatedSizeBytes;
+  final FilePath targetPath;
+  final DownloadJobMetadata metadata;
+
+  CatalogDownloadRequest({
+    required this.catalogTrack,
+    required this.downloadURL,
+    required this.estimatedSizeBytes,
+    required this.targetPath,
+    required this.metadata,
+  }) {
+    Invariant.range(
+      value: estimatedSizeBytes,
+      name: 'estimatedSizeBytes',
+      min: 1,
+      max: maxEstimatedSizeBytes,
+    );
+
+    if (downloadURL.url.scheme != URLScheme.https) {
+      throw InvariantViolationError('downloadURL must use HTTPS scheme.');
+    }
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) {
+      return true;
+    }
+
+    if (other is! CatalogDownloadRequest) {
+      return false;
+    }
+
+    return catalogTrack == other.catalogTrack &&
+        downloadURL == other.downloadURL &&
+        estimatedSizeBytes == other.estimatedSizeBytes &&
+        targetPath == other.targetPath &&
+        metadata == other.metadata;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    catalogTrack,
+    downloadURL,
+    estimatedSizeBytes,
+    targetPath,
+    metadata,
+  );
 }
 
 class DownloadJobMetadata implements ValueObject {
@@ -689,6 +753,10 @@ class FileInfo implements ValueObject {
 
 class InvalidStatusTransitionError extends StateError {
   InvalidStatusTransitionError(super.message);
+}
+
+class RetryLimitExceededError extends StateError {
+  RetryLimitExceededError(super.message);
 }
 
 class CatalogDownloadJob with Publishable<CatalogDownloadEvent> {
@@ -911,10 +979,81 @@ class CatalogDownloadJob with Publishable<CatalogDownloadEvent> {
       CatalogRedownloadRequested(job: identifier, catalogTrack: catalogTrack),
     );
   }
+
+  static CatalogDownloadJob queue(CatalogDownloadRequest request) {
+    final identifier = CatalogDownloadJobIdentifier.generate();
+    final now = DateTime.now();
+
+    final job = CatalogDownloadJob(
+      identifier: identifier,
+      catalogTrack: request.catalogTrack,
+      downloadUrl: request.downloadURL,
+      estimatedSizeBytes: request.estimatedSizeBytes,
+      metadata: request.metadata,
+      status: DownloadStatus.pending,
+      timeline: Timeline(createdAt: now, updatedAt: now),
+      checksums: VerificationChecksums(
+        expected: Checksum(
+          value: '0' * 64,
+          algorithm: ChecksumAlgorithm.sha256,
+        ),
+      ),
+      retryState: RetryState.initial(),
+      paths: DownloadAssetPaths(target: request.targetPath),
+    );
+
+    job.publish(
+      CatalogDownloadQueued(
+        job: identifier,
+        catalogTrack: request.catalogTrack,
+        isRetry: false,
+      ),
+    );
+
+    return job;
+  }
+
+  void reset() {
+    if (_status != DownloadStatus.failed) {
+      throw InvalidStatusTransitionError(
+        'Cannot reset from status: $_status. Job must be in Failed status.',
+      );
+    }
+
+    if (!_retryState.canRetry()) {
+      throw RetryLimitExceededError(
+        'Cannot retry: ${_retryState.isRetryExhausted() ? "retry limit exceeded" : "failure reason is not retryable"}.',
+      );
+    }
+
+    _status = DownloadStatus.pending;
+    _retryState = _retryState.incrementRetryCount();
+    _timeline = _timeline.markUpdated(DateTime.now());
+
+    publish(
+      CatalogDownloadQueued(
+        job: identifier,
+        catalogTrack: catalogTrack,
+        isRetry: true,
+      ),
+    );
+  }
 }
 
 abstract class CatalogDownloadEvent extends BaseEvent {
   CatalogDownloadEvent(super.occurredAt);
+}
+
+class CatalogDownloadQueued extends CatalogDownloadEvent {
+  final CatalogDownloadJobIdentifier job;
+  final CatalogTrackIdentifier catalogTrack;
+  final bool isRetry;
+
+  CatalogDownloadQueued({
+    required this.job,
+    required this.catalogTrack,
+    required this.isRetry,
+  }) : super(DateTime.now());
 }
 
 class CatalogDownloadStarted extends CatalogDownloadEvent {

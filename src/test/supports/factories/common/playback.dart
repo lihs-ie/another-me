@@ -7,6 +7,10 @@ class LoopModeFactory extends EnumFactory<LoopMode> {
   LoopModeFactory() : super(LoopMode.values);
 }
 
+class PlaybackModeFactory extends EnumFactory<PlaybackMode> {
+  PlaybackModeFactory() : super(PlaybackMode.values);
+}
+
 class FadeDurationFactory extends Factory<FadeDuration, ({int? milliseconds})> {
   @override
   FadeDuration create({({int? milliseconds})? overrides, required int seed}) {
